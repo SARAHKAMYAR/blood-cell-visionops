@@ -41,7 +41,10 @@ def _collect(model: YOLO, data_root: Path, split: str, device: str):
     gts, preds = [], []
     for image in images:
         gts.append(ground_truth_counts(data_root / "labels" / split / f"{image.stem}.txt"))
-        r = model.predict(str(image), conf=0.01, device=device, verbose=False)[0]
+        r = model.predict(
+            str(image), conf=0.01, iou=get_settings().iou_threshold, imgsz=get_settings().imgsz,
+            device=device, verbose=False,
+        )[0]
         preds.append((r.boxes.cls.cpu().numpy().astype(int), r.boxes.conf.cpu().numpy()))
     return np.array(gts), preds
 

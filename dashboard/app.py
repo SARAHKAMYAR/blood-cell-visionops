@@ -219,6 +219,14 @@ with tab_analyze:
         qc_panel(result["quality_control"])
         image_viewer(Image.open(io.BytesIO(st.session_state["last_image"])), result["detections"], "live")
         st.subheader("Technical report")
+        val = result.get("report_validation") or {}
+        if val.get("status") == "verified":
+            st.success(f"Gemini narrative verified: {val.get('numbers_checked', 0)} numeric claims match the detector output.", icon="✅")
+        elif val.get("status") == "rejected":
+            st.warning("Gemini narrative rejected by verification; showing the deterministic report.", icon="🛡️")
+            with st.expander("Why it was rejected"):
+                for issue in val.get("issues", []):
+                    st.write(f"- {issue}")
         st.markdown(result["ai_report"])
 
 # ---- Shared DB load ------------------------------------------------------ #

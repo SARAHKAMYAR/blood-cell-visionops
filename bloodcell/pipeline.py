@@ -27,7 +27,7 @@ def analyze_image(
         low_conf_threshold=settings.low_conf_threshold,
         overlap_iou_threshold=settings.overlap_iou_threshold,
     )
-    report, source = generate_report(prediction, qc, settings, use_llm=use_llm)
+    report, source, validation = generate_report(prediction, qc, settings, use_llm=use_llm)
     return Analysis(
         filename=prediction.filename,
         image_width=prediction.image_width,
@@ -40,4 +40,5 @@ def analyze_image(
         quality_control=qc,
         ai_report=report,
         report_source=source,
+        report_validation=validation,
     )

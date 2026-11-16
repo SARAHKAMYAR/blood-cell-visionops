@@ -54,6 +54,7 @@ def test_analyze_returns_qc_and_report(client):
     assert body["counts"] == {"RBC": 2, "WBC": 1, "Platelets": 1}
     assert body["quality_control"]["status"] == "PASS"
     assert body["report_source"] == "template"
+    assert body["report_validation"]["status"] == "not_applicable"
     assert body["id"] is None  # no DB configured
 
 
@@ -69,3 +70,21 @@ def test_rejects_corrupt_image(client):
 
 def test_history_requires_db(client):
     assert client.get("/analyses").status_code == 503
+
+
+def test_analyze_survives_gemini_outage(client, monkeypatch):
+    from dataclasses import replace
+
+    from bloodcell import pipeline, report
+
+    def boom(payload, settings):
+        raise ConnectionError("network down")
+
+    monkeypatch.setattr(report, "_call_gemini", boom)
+    real = pipeline.get_settings()
+    monkeypatch.setattr(pipeline, "get_settings", lambda: replace(real, gemini_api_key="k"))
+    r = client.post("/analyze", files={"file": ("a.jpg", _jpeg(), "image/jpeg")})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["report_source"] == "template_fallback"
+    assert body["report_validation"]["status"] == "rejected"

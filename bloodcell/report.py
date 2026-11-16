@@ -1,17 +1,32 @@
-"""Technical report generation: Gemini LLM with a deterministic fallback.
+"""Technical report generation: grounded Gemini narrative with verified numbers.
 
-The LLM never sees the image. It only receives the structured, already
-computed measurements (counts, confidences, QC flags), which keeps it
-grounded: it explains numbers, it does not invent findings.
+Design
+------
+* Every measurement in a report is rendered by code from the detector/QC
+  output (counts table, confidence and QC figures). The LLM never produces a
+  table of numbers.
+* Gemini receives only aggregate measurements (no image, no patient data) and
+  returns a *structured* JSON narrative (summary, quality assessment,
+  reviewer actions) validated against a Pydantic schema.
+* The narrative is then verified deterministically
+  (:mod:`bloodcell.report_validation`): any untraceable, inconsistent or
+  missing number, or any clinical term, rejects it.
+* Any failure (no key, network/quota error, safety block, invalid JSON,
+  schema violation, failed verification) falls back to the deterministic
+  template. The API never fails because of the LLM.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import re
+
+from pydantic import ValidationError
 
 from bloodcell.config import Settings, get_settings
-from bloodcell.schemas import Prediction, QualityControl
+from bloodcell.report_validation import LLMNarrative, verify_narrative
+from bloodcell.schemas import Prediction, QualityControl, ReportValidation
 
 logger = logging.getLogger(__name__)
 
@@ -21,20 +36,20 @@ DISCLAIMER = (
 )
 
 SYSTEM_INSTRUCTION = """\
-You are a laboratory computer-vision QA assistant writing a short technical \
-report about an automated blood-smear object-detection run.
+You are a laboratory computer-vision QA assistant. You write the narrative \
+parts of a technical report about one automated blood-smear detection run. \
+Tables of measurements are added separately by software; do not reproduce them.
 
 Rules:
-- Use ONLY the JSON measurements provided. Never invent numbers.
-- Do NOT give a medical diagnosis or suggest a disease. You may say whether \
-the run looks technically reliable and what a human reviewer should check.
+- Every number you write must be copied exactly from the JSON measurements \
+(you may round, and you may express a 0-1 confidence as a percentage). \
+Never estimate, compute new statistics, or introduce measurements that are \
+not in the JSON (no cell sizes, ratios to reference ranges, or clinical values).
+- The summary must state the total number of detections and the QC status.
+- Do NOT diagnose or name any disease or clinical condition. Comment only on \
+the technical reliability of the run and what a human reviewer should check.
 - Explain QC flags in plain language.
-- Output GitHub-flavoured Markdown with exactly these sections:
-  ### Summary
-  ### Detection Breakdown
-  ### Quality Assessment
-  ### Recommended Reviewer Actions
-- Maximum 220 words.
+- Be concise: at most 140 words in total.
 """
 
 FLAG_TEXT = {
@@ -48,6 +63,7 @@ FLAG_TEXT = {
 
 
 def _payload(prediction: Prediction, qc: QualityControl) -> dict:
+    """The only information the LLM sees: aggregates, never boxes or pixels."""
     return {
         "filename": prediction.filename,
         "model": prediction.model_name,
@@ -56,34 +72,46 @@ def _payload(prediction: Prediction, qc: QualityControl) -> dict:
         "counts": prediction.counts,
         "total_detections": len(prediction.detections),
         "quality_control": qc.model_dump(),
+        "flag_explanations": {f: FLAG_TEXT.get(f, f) for f in qc.flags},
     }
 
 
-def template_report(prediction: Prediction, qc: QualityControl) -> str:
-    counts = prediction.counts
+# --------------------------------------------------------------------------- #
+# Deterministic sections (shared by template and LLM reports)
+# --------------------------------------------------------------------------- #
+def _breakdown_lines(prediction: Prediction) -> list[str]:
     total = len(prediction.detections)
-    avg = (
-        f"{qc.average_confidence:.1%}" if qc.average_confidence is not None else "n/a"
-    )
+    lines = ["### Detection Breakdown", "| Cell type | Count | Share |", "|---|---|---|"]
+    for name, n in prediction.counts.items():
+        share = f"{n / total:.0%}" if total else "0%"
+        lines.append(f"| {name} | {n} | {share} |")
+    lines.append(f"| **Total** | **{total}** | 100% |")
+    return lines
+
+
+def _qc_lines(qc: QualityControl) -> list[str]:
+    avg = f"{qc.average_confidence:.1%}" if qc.average_confidence is not None else "n/a"
+    return [
+        f"- QC status: **{qc.status}**",
+        f"- Mean confidence: {avg}; low-confidence detections "
+        f"(< {qc.low_confidence_threshold}): {qc.low_confidence_count}",
+        f"- Overlapping box pairs (IoU > {qc.overlap_iou_threshold}): {qc.overlapping_pair_count}",
+        f"- Cells touching the image border: {qc.edge_truncated_count}",
+    ]
+
+
+def template_report(prediction: Prediction, qc: QualityControl) -> str:
+    total = len(prediction.detections)
     lines = [
         "### Summary",
         f"**{prediction.model_name}** detected **{total} cells** in "
         f"`{prediction.filename}` ({prediction.image_width}x{prediction.image_height}) "
         f"in {prediction.inference_ms:.0f} ms. QC status: **{qc.status}**.",
         "",
-        "### Detection Breakdown",
-    ]
-    for name, n in counts.items():
-        share = f"{n / total:.0%}" if total else "0%"
-        lines.append(f"- **{name}**: {n} ({share})")
-    lines += [
+        *_breakdown_lines(prediction),
         "",
         "### Quality Assessment",
-        f"- Mean confidence: {avg}; low-confidence detections "
-        f"(< {qc.low_confidence_threshold}): {qc.low_confidence_count}",
-        f"- Overlapping box pairs (IoU > {qc.overlap_iou_threshold}): "
-        f"{qc.overlapping_pair_count}",
-        f"- Cells touching the image border: {qc.edge_truncated_count}",
+        *_qc_lines(qc),
     ]
     for flag in qc.flags:
         lines.append(f"- ⚠️ {FLAG_TEXT.get(flag, flag)}")
@@ -100,29 +128,74 @@ def template_report(prediction: Prediction, qc: QualityControl) -> str:
     return "\n".join(lines)
 
 
-def gemini_report(
-    prediction: Prediction, qc: QualityControl, settings: Settings
+def render_llm_report(
+    prediction: Prediction, qc: QualityControl, narrative: LLMNarrative, validation: ReportValidation
 ) -> str:
+    lines = [
+        "### Summary",
+        narrative.summary.strip(),
+        "",
+        *_breakdown_lines(prediction),
+        "",
+        "### Quality Assessment",
+        *_qc_lines(qc),
+        "",
+        narrative.quality_assessment.strip(),
+        "",
+        "### Recommended Reviewer Actions",
+        *[f"- {a.strip()}" for a in narrative.reviewer_actions],
+        "",
+        f"_Narrative written by {validation.llm_model} (structured output). All figures are computed "
+        f"by the detector and QC; {validation.numbers_checked} numeric claim(s) in the narrative were "
+        f"verified against them._",
+        "",
+        DISCLAIMER,
+    ]
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- #
+# Gemini
+# --------------------------------------------------------------------------- #
+def _call_gemini(payload: dict, settings: Settings) -> str:
+    """Return Gemini's raw JSON text. Isolated so tests can replace it."""
     from google import genai
     from google.genai import types
 
     client = genai.Client(api_key=settings.gemini_api_key)
     response = client.models.generate_content(
         model=settings.gemini_model,
-        contents=(
-            "Measurements (JSON):\n"
-            + json.dumps(_payload(prediction, qc), indent=2)
-        ),
+        contents="Measurements (JSON):\n" + json.dumps(payload, indent=2),
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_INSTRUCTION,
             temperature=0.2,
-            max_output_tokens=800,
+            max_output_tokens=1024,
+            response_mime_type="application/json",
+            response_schema=LLMNarrative,
         ),
     )
     text = (response.text or "").strip()
     if not text:
-        raise RuntimeError("Gemini returned an empty response")
-    return f"{text}\n\n{DISCLAIMER}"
+        raise RuntimeError("Gemini returned an empty response (possibly safety-blocked)")
+    return text
+
+
+def parse_narrative(raw: str) -> LLMNarrative:
+    """Parse and schema-validate the LLM output (tolerates a ```json fence)."""
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip())
+    return LLMNarrative.model_validate_json(cleaned)
+
+
+def gemini_report(
+    prediction: Prediction, qc: QualityControl, settings: Settings
+) -> tuple[str | None, ReportValidation]:
+    """Return (report, validation); report is None when the narrative is rejected."""
+    payload = _payload(prediction, qc)
+    narrative = parse_narrative(_call_gemini(payload, settings))
+    validation = verify_narrative(narrative, payload, llm_model=settings.gemini_model)
+    if validation.status != "verified":
+        return None, validation
+    return render_llm_report(prediction, qc, narrative, validation), validation
 
 
 def generate_report(
@@ -130,12 +203,35 @@ def generate_report(
     qc: QualityControl,
     settings: Settings | None = None,
     use_llm: bool = True,
-) -> tuple[str, str]:
-    """Return (markdown_report, source) where source is 'gemini' or 'template'."""
+) -> tuple[str, str, ReportValidation]:
+    """Return (markdown_report, source, validation).
+
+    source is 'gemini' (verified narrative), 'template' (LLM not requested or
+    not configured) or 'template_fallback' (LLM failed or was rejected).
+    """
     settings = settings or get_settings()
-    if use_llm and settings.gemini_api_key:
-        try:
-            return gemini_report(prediction, qc, settings), "gemini"
-        except Exception as exc:  # network, quota, safety block...
-            logger.warning("Gemini report failed, using template: %s", exc)
-    return template_report(prediction, qc), "template"
+    if not (use_llm and settings.gemini_api_key):
+        return template_report(prediction, qc), "template", ReportValidation(status="not_applicable")
+
+    try:
+        report, validation = gemini_report(prediction, qc, settings)
+    except (ValidationError, ValueError) as exc:
+        validation = ReportValidation(
+            status="rejected",
+            issues=[f"invalid structured output: {type(exc).__name__}"],
+            llm_model=settings.gemini_model,
+        )
+        report = None
+    except Exception as exc:  # network, auth, quota, safety block, SDK errors
+        logger.warning("Gemini unavailable, using template: %s", type(exc).__name__)
+        validation = ReportValidation(
+            status="rejected",
+            issues=[f"LLM call failed: {type(exc).__name__}"],
+            llm_model=settings.gemini_model,
+        )
+        report = None
+
+    if report is None:
+        logger.warning("Gemini narrative rejected: %s", "; ".join(validation.issues))
+        return template_report(prediction, qc), "template_fallback", validation
+    return report, "gemini", validation

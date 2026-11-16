@@ -88,7 +88,9 @@ def get_settings() -> Settings:
         ),
         device=resolve_device(),
         conf_threshold=float(os.getenv("BCV_CONF", "0.25")),
-        iou_threshold=float(os.getenv("BCV_IOU", "0.7")),
+        # NMS IoU used for serving AND for counting evaluation/calibration
+        # (scripts read this same setting so the two cannot drift apart).
+        iou_threshold=float(os.getenv("BCV_IOU", "0.5")),
         imgsz=int(os.getenv("BCV_IMGSZ", "640")),
         low_conf_threshold=float(os.getenv("BCV_LOW_CONF", "0.5")),
         overlap_iou_threshold=float(os.getenv("BCV_OVERLAP_IOU", "0.5")),

@@ -1,0 +1,28 @@
+{
+  "run": "yolo11s_e100",
+  "weights_sha256": "8a310706bdca79b57b790d32f35db58b2ca5778704c6930a0cf4a8f64ba93491",
+  "split": "test",
+  "images": 56,
+  "labels": 746,
+  "class_names": [
+    "RBC",
+    "WBC",
+    "Platelets"
+  ],
+  "serving_settings": {
+    "nms_iou": 0.5,
+    "imgsz": 640,
+    "default_conf": 0.25,
+    "calibrated_thresholds": {
+      "RBC": 0.55,
+      "WBC": 0.45,
+      "Platelets": 0.55
+    }
+  },
+  "val_reported": {
+    "mAP50": 0.9461627075729572,
+    "mAP50_95": 0.6495744149495921
+  },
+  "val_note": "val_* arrays are Ultralytics validator stats (multi-label NMS, rect batches)",
+  "device": "mps"
+}

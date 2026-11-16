@@ -1,0 +1,28 @@
+{
+  "run": "blood_cells_baseline",
+  "weights_sha256": "85514ccb30be8dd01eedcf414d8b7e528cca5f2815e65bbe5050addce47c6a8f",
+  "split": "test",
+  "images": 56,
+  "labels": 746,
+  "class_names": [
+    "RBC",
+    "WBC",
+    "Platelets"
+  ],
+  "serving_settings": {
+    "nms_iou": 0.5,
+    "imgsz": 640,
+    "default_conf": 0.25,
+    "calibrated_thresholds": {
+      "RBC": 0.55,
+      "WBC": 0.05,
+      "Platelets": 0.3
+    }
+  },
+  "val_reported": {
+    "mAP50": 0.9325496511058989,
+    "mAP50_95": 0.6292089443824178
+  },
+  "val_note": "val_* arrays are Ultralytics validator stats (multi-label NMS, rect batches)",
+  "device": "mps"
+}

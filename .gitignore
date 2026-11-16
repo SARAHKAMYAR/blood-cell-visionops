@@ -18,7 +18,9 @@ BCCD_Dataset/
 data/
 runs/
 logs/
-reports/predictions/
+reports/predictions/*
+!reports/predictions/test_*.npz
+!reports/predictions/test_*.json
 /yolo*.pt
 *.zip
 

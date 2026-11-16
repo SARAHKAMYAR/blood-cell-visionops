@@ -1,0 +1,446 @@
+{
+  "method": {
+    "resampling_unit": "image",
+    "design": "paired (identical resampled image sets for all models)",
+    "B": 2000,
+    "seed": 42,
+    "interval": "95% percentile bootstrap",
+    "split": "test",
+    "n_images": 56,
+    "n_labels": 746,
+    "detection_matching": "per-image TP statistics captured from Ultralytics model.val() (multi-label NMS), re-aggregated with ultralytics ap_per_class (IoU 0.50:0.95)",
+    "counting_source": "counts produced through the serving configuration (model.predict, single-label NMS, API NMS IoU and confidence floor)",
+    "counting_thresholds": "per-class, calibrated on the val split (see reports/metrics/<run>.json)"
+  },
+  "models": {
+    "yolo11n_e100": {
+      "point": {
+        "mAP50": 0.9462989486692129,
+        "mAP50_95": 0.6443213928776743,
+        "RBC_mAP50_95": 0.6441569050259122,
+        "WBC_mAP50_95": 0.7844840735759239,
+        "Platelets_mAP50_95": 0.5043232000311866,
+        "RBC_count_MAE": 3.107142857142857,
+        "WBC_count_MAE": 0.017857142857142856,
+        "Platelets_count_MAE": 0.4642857142857143
+      },
+      "ci95": {
+        "mAP50": [
+          0.9241797014611755,
+          0.961267966129921
+        ],
+        "mAP50_95": [
+          0.6178992638981735,
+          0.6767701724245913
+        ],
+        "RBC_mAP50_95": [
+          0.6119706174710432,
+          0.6752331131725986
+        ],
+        "WBC_mAP50_95": [
+          0.7508654995302678,
+          0.8218702871167263
+        ],
+        "Platelets_mAP50_95": [
+          0.4526119389870104,
+          0.5615276938451492
+        ],
+        "RBC_count_MAE": [
+          2.4642857142857144,
+          3.767857142857143
+        ],
+        "WBC_count_MAE": [
+          0.0,
+          0.05357142857142857
+        ],
+        "Platelets_count_MAE": [
+          0.32142857142857145,
+          0.625
+        ]
+      },
+      "ultralytics_val_reported": {
+        "mAP50": 0.9462989486692129,
+        "mAP50_95": 0.6443213928776743
+      },
+      "count_thresholds": {
+        "RBC": 0.55,
+        "WBC": 0.15,
+        "Platelets": 0.1
+      }
+    },
+    "yolo11s_e100": {
+      "point": {
+        "mAP50": 0.9461627075729572,
+        "mAP50_95": 0.6495744149495921,
+        "RBC_mAP50_95": 0.6414308771064355,
+        "WBC_mAP50_95": 0.8098432083121422,
+        "Platelets_mAP50_95": 0.49744915943019885,
+        "RBC_count_MAE": 3.0714285714285716,
+        "WBC_count_MAE": 0.017857142857142856,
+        "Platelets_count_MAE": 0.25
+      },
+      "ci95": {
+        "mAP50": [
+          0.9221728289079832,
+          0.9634464313063623
+        ],
+        "mAP50_95": [
+          0.6257037138833229,
+          0.6771114558063037
+        ],
+        "RBC_mAP50_95": [
+          0.6094989171550662,
+          0.6724092967496748
+        ],
+        "WBC_mAP50_95": [
+          0.7842122927355475,
+          0.8388156818907089
+        ],
+        "Platelets_mAP50_95": [
+          0.44579834924991796,
+          0.55235163056213
+        ],
+        "RBC_count_MAE": [
+          2.5,
+          3.6785714285714284
+        ],
+        "WBC_count_MAE": [
+          0.0,
+          0.05357142857142857
+        ],
+        "Platelets_count_MAE": [
+          0.14285714285714285,
+          0.35714285714285715
+        ]
+      },
+      "ultralytics_val_reported": {
+        "mAP50": 0.9461627075729572,
+        "mAP50_95": 0.6495744149495921
+      },
+      "count_thresholds": {
+        "RBC": 0.55,
+        "WBC": 0.45,
+        "Platelets": 0.55
+      }
+    },
+    "blood_cells_baseline": {
+      "point": {
+        "mAP50": 0.9325496511058989,
+        "mAP50_95": 0.6292089443824178,
+        "RBC_mAP50_95": 0.6138129855309448,
+        "WBC_mAP50_95": 0.7876186903140664,
+        "Platelets_mAP50_95": 0.4861951573022421,
+        "RBC_count_MAE": 2.9107142857142856,
+        "WBC_count_MAE": 0.05357142857142857,
+        "Platelets_count_MAE": 0.39285714285714285
+      },
+      "ci95": {
+        "mAP50": [
+          0.9043637915697664,
+          0.9522556116776597
+        ],
+        "mAP50_95": [
+          0.6002095689926625,
+          0.6610362791668632
+        ],
+        "RBC_mAP50_95": [
+          0.5808342804571378,
+          0.6467476732304428
+        ],
+        "WBC_mAP50_95": [
+          0.7550762633768326,
+          0.8205428759360441
+        ],
+        "Platelets_mAP50_95": [
+          0.4183732770682299,
+          0.5510858843241705
+        ],
+        "RBC_count_MAE": [
+          2.249553571428572,
+          3.642857142857143
+        ],
+        "WBC_count_MAE": [
+          0.0,
+          0.10758928571428328
+        ],
+        "Platelets_count_MAE": [
+          0.21428571428571427,
+          0.5892857142857143
+        ]
+      },
+      "ultralytics_val_reported": {
+        "mAP50": 0.9325496511058989,
+        "mAP50_95": 0.6292089443824178
+      },
+      "count_thresholds": {
+        "RBC": 0.55,
+        "WBC": 0.05,
+        "Platelets": 0.3
+      }
+    }
+  },
+  "comparisons": {
+    "yolo11s_e100 minus yolo11n_e100": {
+      "mAP50": {
+        "difference": -0.00013624109625576253,
+        "ci95": [
+          -0.008113989157440176,
+          0.008903921089700256
+        ],
+        "resolved": false,
+        "verdict": "no: interval includes 0",
+        "share_of_resamples_positive": 0.5735
+      },
+      "mAP50_95": {
+        "difference": 0.005253022071917801,
+        "ci95": [
+          -0.008458249423105567,
+          0.0188884572887546
+        ],
+        "resolved": false,
+        "verdict": "no: interval includes 0",
+        "share_of_resamples_positive": 0.788
+      },
+      "RBC_mAP50_95": {
+        "difference": -0.0027260279194766257,
+        "ci95": [
+          -0.011703760846647515,
+          0.0073623496622790266
+        ],
+        "resolved": false,
+        "verdict": "no: interval includes 0",
+        "share_of_resamples_positive": 0.2965
+      },
+      "WBC_mAP50_95": {
+        "difference": 0.025359134736218314,
+        "ci95": [
+          0.00018009870618177452,
+          0.049090064538436964
+        ],
+        "resolved": true,
+        "verdict": "yes (borderline)",
+        "share_of_resamples_positive": 0.9755
+      },
+      "Platelets_mAP50_95": {
+        "difference": -0.00687404060098773,
+        "ci95": [
+          -0.03836568985405754,
+          0.02735433906648409
+        ],
+        "resolved": false,
+        "verdict": "no: interval includes 0",
+        "share_of_resamples_positive": 0.355
+      },
+      "RBC_count_MAE": {
+        "difference": -0.03571428571428559,
+        "ci95": [
+          -0.5714285714285712,
+          0.4642857142857144
+        ],
+        "resolved": false,
+        "verdict": "no: interval includes 0",
+        "share_of_resamples_positive": 0.4175
+      },
+      "WBC_count_MAE": {
+        "difference": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "resolved": false,
+        "verdict": "no: identical on every resample",
+        "share_of_resamples_positive": 0.0
+      },
+      "Platelets_count_MAE": {
+        "difference": -0.2142857142857143,
+        "ci95": [
+          -0.375,
+          -0.07142857142857145
+        ],
+        "resolved": true,
+        "verdict": "yes",
+        "share_of_resamples_positive": 0.001
+      }
+    },
+    "blood_cells_baseline minus yolo11n_e100": {
+      "mAP50": {
+        "difference": -0.013749297563314,
+        "ci95": [
+          -0.029679140765161007,
+          6.649332354197792e-05
+        ],
+        "resolved": false,
+        "verdict": "no: interval includes 0",
+        "share_of_resamples_positive": 0.0255
+      },
+      "mAP50_95": {
+        "difference": -0.015112448495256503,
+        "ci95": [
+          -0.03749812076706608,
+          0.003800734504494388
+        ],
+        "resolved": false,
+        "verdict": "no: interval includes 0",
+        "share_of_resamples_positive": 0.059
+      },
+      "RBC_mAP50_95": {
+        "difference": -0.030343919494967397,
+        "ci95": [
+          -0.0456613043183972,
+          -0.013202767976503205
+        ],
+        "resolved": true,
+        "verdict": "yes",
+        "share_of_resamples_positive": 0.0
+      },
+      "WBC_mAP50_95": {
+        "difference": 0.003134616738142526,
+        "ci95": [
+          -0.02268998012212625,
+          0.02810750258657433
+        ],
+        "resolved": false,
+        "verdict": "no: interval includes 0",
+        "share_of_resamples_positive": 0.546
+      },
+      "Platelets_mAP50_95": {
+        "difference": -0.01812804272894447,
+        "ci95": [
+          -0.07340901172303334,
+          0.029552089728307755
+        ],
+        "resolved": false,
+        "verdict": "no: interval includes 0",
+        "share_of_resamples_positive": 0.2245
+      },
+      "RBC_count_MAE": {
+        "difference": -0.19642857142857162,
+        "ci95": [
+          -0.8397321428571421,
+          0.4285714285714288
+        ],
+        "resolved": false,
+        "verdict": "no: interval includes 0",
+        "share_of_resamples_positive": 0.2675
+      },
+      "WBC_count_MAE": {
+        "difference": 0.03571428571428571,
+        "ci95": [
+          0.0,
+          0.08928571428571429
+        ],
+        "resolved": false,
+        "verdict": "no: interval includes 0",
+        "share_of_resamples_positive": 0.865
+      },
+      "Platelets_count_MAE": {
+        "difference": -0.07142857142857145,
+        "ci95": [
+          -0.2683035714285707,
+          0.14285714285714285
+        ],
+        "resolved": false,
+        "verdict": "no: interval includes 0",
+        "share_of_resamples_positive": 0.226
+      }
+    }
+  },
+  "threshold_calibration": {
+    "yolo11n_e100": {
+      "RBC": {
+        "count_MAE_conf025": 7.482142857142857,
+        "count_MAE_calibrated": 3.107142857142857,
+        "difference": -4.375,
+        "ci95": [
+          -5.517857142857143,
+          -3.1607142857142856
+        ],
+        "verdict": "yes"
+      },
+      "WBC": {
+        "count_MAE_conf025": 0.017857142857142856,
+        "count_MAE_calibrated": 0.017857142857142856,
+        "difference": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "verdict": "no: identical on every resample"
+      },
+      "Platelets": {
+        "count_MAE_conf025": 0.2857142857142857,
+        "count_MAE_calibrated": 0.4642857142857143,
+        "difference": 0.1785714285714286,
+        "ci95": [
+          0.0535714285714286,
+          0.3035714285714286
+        ],
+        "verdict": "yes"
+      }
+    },
+    "yolo11s_e100": {
+      "RBC": {
+        "count_MAE_conf025": 6.928571428571429,
+        "count_MAE_calibrated": 3.0714285714285716,
+        "difference": -3.857142857142857,
+        "ci95": [
+          -4.946428571428571,
+          -2.803571428571429
+        ],
+        "verdict": "yes"
+      },
+      "WBC": {
+        "count_MAE_conf025": 0.017857142857142856,
+        "count_MAE_calibrated": 0.017857142857142856,
+        "difference": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "verdict": "no: identical on every resample"
+      },
+      "Platelets": {
+        "count_MAE_conf025": 0.2857142857142857,
+        "count_MAE_calibrated": 0.25,
+        "difference": -0.0357142857142857,
+        "ci95": [
+          -0.1607142857142857,
+          0.07142857142857145
+        ],
+        "verdict": "no: interval includes 0"
+      }
+    },
+    "blood_cells_baseline": {
+      "RBC": {
+        "count_MAE_conf025": 7.321428571428571,
+        "count_MAE_calibrated": 2.9107142857142856,
+        "difference": -4.410714285714286,
+        "ci95": [
+          -5.553571428571429,
+          -3.2142857142857144
+        ],
+        "verdict": "yes"
+      },
+      "WBC": {
+        "count_MAE_conf025": 0.017857142857142856,
+        "count_MAE_calibrated": 0.05357142857142857,
+        "difference": 0.03571428571428571,
+        "ci95": [
+          0.0,
+          0.08928571428571429
+        ],
+        "verdict": "no: interval includes 0"
+      },
+      "Platelets": {
+        "count_MAE_conf025": 0.30357142857142855,
+        "count_MAE_calibrated": 0.39285714285714285,
+        "difference": 0.0892857142857143,
+        "ci95": [
+          -0.01785714285714285,
+          0.2142857142857143
+        ],
+        "verdict": "no: interval includes 0"
+      }
+    }
+  }
+}

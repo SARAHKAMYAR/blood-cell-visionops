@@ -2,7 +2,7 @@ PY ?= .venv/bin/python
 RUNS ?= runs/yolo11n_e100 runs/yolo11s_e100
 BEST ?= runs/yolo11n_e100
 
-.PHONY: help install data train evaluate promote benchmark ingest api dashboard test lint up down
+.PHONY: help install data train evaluate stats promote benchmark ingest api dashboard test lint up down
 
 help:  ## Show available commands
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  \033[36m%-10s\033[0m %s\n",$$1,$$2}'
@@ -20,6 +20,10 @@ train:  ## Train YOLO11n and YOLO11s (100 epochs)
 
 evaluate:  ## Test-set detection + counting metrics
 	$(PY) scripts/evaluate.py $(RUNS)
+
+stats:  ## Per-image test artefacts + paired bootstrap confidence intervals
+	$(PY) scripts/export_predictions.py $(RUNS) runs/blood_cells_baseline
+	$(PY) scripts/bootstrap_eval.py --runs yolo11n_e100 yolo11s_e100 blood_cells_baseline
 
 promote:  ## Copy best run to models/ and export ONNX
 	$(PY) scripts/promote_model.py $(BEST)

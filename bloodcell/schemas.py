@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -52,6 +53,15 @@ class Prediction(BaseModel):
         return counts
 
 
+class ReportValidation(BaseModel):
+    """Outcome of deterministic verification of an LLM narrative."""
+
+    status: Literal["verified", "rejected", "not_applicable"]
+    numbers_checked: int = 0
+    issues: list[str] = Field(default_factory=list)
+    llm_model: str | None = None
+
+
 class Analysis(BaseModel):
     """A full analysis: detections + QC + generated report."""
 
@@ -66,5 +76,6 @@ class Analysis(BaseModel):
     detections: list[Detection]
     quality_control: QualityControl
     ai_report: str
-    report_source: str = Field(description="gemini or template")
+    report_source: str = Field(description="gemini, template or template_fallback")
+    report_validation: ReportValidation | None = None
     created_at: datetime | None = None
