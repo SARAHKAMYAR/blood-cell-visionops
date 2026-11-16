@@ -1,7 +1,7 @@
 {
   "source_run": "yolo11n_e100",
   "promoted_at": "2026-11-16T12:57:13+00:00",
-  "pt_sha256": "e7f21acdd6d6d4ef3ab8b3a97855f3b107da082e14e576b64e1db531af2d8ec3",
+  "pt_sha256": "ae97bb9b53e19056a870d6a92ec22af82f8622b5e4b4466bec478ac00d47e076",
   "test_metrics": {
     "run": "yolo11n_e100",
     "params_m": 2.61,
@@ -81,5 +81,6 @@
     "WBC": 0.15,
     "Platelets": 0.1
   },
-  "onnx_sha256": "eb1667d5b13e3fa6eb1aabdbf099e815eeaefd78355faf402e36e4d77d56e6ae"
+  "onnx_sha256": "66dd510385dbd2f85ef8594bfd9dffe4aa072416708fd29a42395eb6fbfc6e04",
+  "metadata_scrubbed": "local filesystem paths and git info removed; weights unchanged"
 }

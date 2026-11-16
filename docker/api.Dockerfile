@@ -6,9 +6,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     BCV_DEVICE=cpu \
     YOLO_CONFIG_DIR=/tmp/ultralytics
 
+# Apply Debian security updates on top of the base image, then add runtime libs.
 RUN apt-get update \
+ && apt-get upgrade -y \
  && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 curl \
  && rm -rf /var/lib/apt/lists/*
+
+# The base image ships older pip/setuptools with known CVEs (incl. vendored wheel).
+RUN pip install --upgrade pip setuptools wheel
 
 WORKDIR /app
 

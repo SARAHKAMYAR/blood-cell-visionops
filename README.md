@@ -159,7 +159,8 @@ Gemini never sees the image and never produces the tables or measurements in a r
 - a number cannot be traced to the detector/QC output (for example an invented cell diameter);
 - a number attached to a cell class or the total contradicts that count ("17 RBCs" when 16 were detected);
 - the summary omits the total count or the QC status;
-- it uses a listed clinical or diagnostic term.
+- it uses a listed clinical or diagnostic term;
+- it contains links, images, URLs or HTML (so a prompt-injected narrative cannot put clickable or tracking content in the dashboard).
 
 A rejected narrative, invalid JSON, an empty or blocked response, or an API error falls back to a deterministic template, and the response records why in `report_validation`.
 
@@ -182,8 +183,8 @@ The suite runs offline. In a checkout without the dataset, the two real-model te
 - **Small test set.** 56 images; several differences between models cannot be resolved.
 - **Label noise.** Missing RBC annotations make RBC precision and count metrics pessimistic.
 - **Not distinguished:** white-cell subtypes, abnormal cells, parasites.
-- **Demo-grade deployment.** No authentication or rate limiting, CORS is open, and the default database password is `bloodcell`; ports bind to localhost only. Change these before exposing the stack to a network.
-- **Secrets:** `.env` and Streamlit secrets are git-ignored; the Gemini key is read from the environment and is never logged or stored.
+- **Demo-grade deployment.** Ports bind to localhost only, there is no authentication or rate limiting, and the database uses a default password. Do not expose the stack to a network without adding those. Built-in protections: cross-site browser requests are refused, uploads are capped by size and decoded pixel count, filenames are sanitised, and model files are checked against recorded SHA-256 hashes before loading. See [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
+- **Secrets:** `.env` and Streamlit secrets are git-ignored; the Gemini key is read from the environment and is not logged or stored by the application.
 - **Stored data:** analysed images are saved in PostgreSQL. Do not upload patient-identifiable images.
 
 ## Project structure

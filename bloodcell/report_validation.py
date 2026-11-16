@@ -16,6 +16,10 @@ Checks
    status.
 4. Scope: clinical/diagnostic terms are rejected (the system is not a
    diagnostic device).
+5. Markup: links, images, URLs and HTML are rejected. The narrative is
+   rendered as Markdown in the dashboard, and the filename (user input) is
+   part of the prompt, so this blocks prompt-injected tracking images,
+   phishing links and script URLs.
 
 Known limitations: numbers written as words ("sixteen") are not checked, and
 contextual patterns cover common phrasings rather than all of English. A
@@ -55,6 +59,11 @@ CLINICAL_TERMS = re.compile(
     r"\b(?:an(?:a)?emi[ac]\w*|leuk(?:a)?emi\w*|lymphoma\w*|thrombocytop\w*|thrombocytosis|"
     r"leukocytosis|leukopenia|neutropeni\w*|sepsis|septic|infection\w*|malaria\w*|"
     r"sickle[- ]cell|cancer\w*|malignan\w*|prognos\w*)\b",
+    re.IGNORECASE,
+)
+
+MARKUP = re.compile(
+    r"https?://|\bwww\.|\b(?:javascript|data|vbscript|file):|!\[|\]\s*\(|<\s*/?\s*[A-Za-z!]",
     re.IGNORECASE,
 )
 
@@ -172,6 +181,8 @@ def verify_narrative(narrative: LLMNarrative, payload: dict, llm_model: str | No
 
     for m in CLINICAL_TERMS.finditer(raw_text):
         issues.append(f"out-of-scope clinical term '{m.group(0)}'")
+    if MARKUP.search(raw_text):
+        issues.append("links, images, URLs or HTML are not allowed in the narrative")
 
     # De-duplicate while keeping order.
     issues = list(dict.fromkeys(issues))

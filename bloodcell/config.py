@@ -66,6 +66,8 @@ class Settings:
     gemini_api_key: str | None
     gemini_model: str
     max_upload_mb: int
+    max_image_pixels: int
+    allowed_origins: tuple[str, ...]
     use_calibrated: bool
     class_names: tuple[str, ...] = field(default=CLASS_NAMES)
 
@@ -98,5 +100,9 @@ def get_settings() -> Settings:
         gemini_api_key=os.getenv("GEMINI_API_KEY") or None,
         gemini_model=os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
         max_upload_mb=int(os.getenv("BCV_MAX_UPLOAD_MB", "10")),
+        # Decoded-size cap: a 10 MB compressed file can still expand to gigabytes of pixels.
+        max_image_pixels=int(os.getenv("BCV_MAX_PIXELS", str(40_000_000))),
+        # Extra browser origins allowed to call the API (same-origin, e.g. /docs, is always allowed).
+        allowed_origins=tuple(o.strip() for o in os.getenv("BCV_ALLOWED_ORIGINS", "").split(",") if o.strip()),
         use_calibrated=os.getenv("BCV_USE_CALIBRATED", "true").lower() in {"1", "true", "yes"},
     )

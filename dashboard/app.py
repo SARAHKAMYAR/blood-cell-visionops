@@ -119,7 +119,8 @@ def count_metrics(counts: dict, total: int) -> None:
 
 
 def qc_panel(qc: dict) -> None:
-    status = qc.get("status", "N/A")
+    # Only known values reach the raw-HTML badge below.
+    status = qc.get("status") if qc.get("status") in QC_COLORS else "N/A"
     st.markdown(
         f"**QC status:** <span style='background:{QC_COLORS.get(status, '#6B7280')};"
         f"color:white;padding:2px 10px;border-radius:12px'>{status}</span>",
@@ -206,7 +207,8 @@ with tab_analyze:
                 st.session_state["last_image"] = upload.getvalue()
                 load_analyses.clear()
             except requests.RequestException as exc:
-                st.error(f"Analysis failed: {exc}")
+                code = getattr(getattr(exc, "response", None), "status_code", None)
+                st.error(f"Analysis failed (HTTP {code})." if code else "Analysis failed: the API could not be reached.")
     result = st.session_state.get("last_analysis")
     if result:
         st.divider()
@@ -243,7 +245,8 @@ except Exception as exc:
 # ---- Review -------------------------------------------------------------- #
 with tab_review:
     if db_error:
-        st.error(f"Could not load analyses from PostgreSQL: {db_error}")
+        # Driver errors can name hosts, users or databases; keep them out of the page.
+        st.error("Could not load analyses from PostgreSQL. Check that the database is running and DATABASE_URL is set.")
     elif df.empty:
         st.warning("No analyses stored yet. Run `make ingest` or use the Analyze tab.")
     else:

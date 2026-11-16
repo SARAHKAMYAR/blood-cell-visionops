@@ -23,7 +23,9 @@ repository; ⬜ = still open.
 - ✅ `pip-audit` 2.10.1 on the development environment: no known vulnerabilities.
 
 ## Open
-1. ⬜ **Make the repository public** (it was published private first).
+1. ⬜ **Rotate the Gemini API key** (exposed in a chat log; still active). See `docs/SECURITY_AUDIT.md`, S1.
+2. ⬜ **Decide on old model files in history** (local paths with OS username in earlier commits; S7).
+3. ⬜ **Make the repository public** after 1 and 2 (it was published private first).
 
 ## Known open issues (documented, not hidden)
 - Gemini reliability is unmeasured: one successful live call; free-tier quota errors (429) and
@@ -36,5 +38,5 @@ repository; ⬜ = still open.
 - The report checker tests traceability, not meaning (blind spots listed in the README).
 - Evaluation used the PyTorch weights; the ONNX export served in Docker gives slightly different
   detections (test count error 2.62 / 0.02 / 0.41 vs 3.11 / 0.02 / 0.46).
-- `models/best.pt` and `best.onnx` embed the local training paths in their metadata.
 - The demo stack has no authentication and a default database password; it binds to localhost only.
+- Security audit and remaining risks: `docs/SECURITY_AUDIT.md`.

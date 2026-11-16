@@ -8,11 +8,15 @@ from __future__ import annotations
 
 import io
 import logging
+import re
 import time
 from contextlib import asynccontextmanager
+from pathlib import PurePosixPath, PureWindowsPath
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse
 from PIL import Image, UnidentifiedImageError
 
 from bloodcell import __version__
@@ -25,6 +29,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("bloodcell.api")
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/bmp", "image/tiff"}
+SAFE_FILENAME = re.compile(r"[^A-Za-z0-9._ -]")
 state: dict = {}
 
 
@@ -58,7 +63,21 @@ app = FastAPI(
     version=__version__,
     lifespan=lifespan,
 )
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+
+# No CORS middleware: the dashboard calls the API server-side, so browsers never
+# need cross-origin access. Browsers still *send* cross-site form posts, so any
+# request whose Origin is neither this host nor explicitly allowed is refused.
+# This stops a web page the user happens to visit from reading stored analyses,
+# writing records or spending the Gemini quota through the local API.
+@app.middleware("http")
+async def reject_cross_site(request: Request, call_next):
+    origin = request.headers.get("origin")
+    if origin is not None:
+        same_host = urlsplit(origin).netloc == request.headers.get("host", "")
+        if not same_host and origin not in get_settings().allowed_origins:
+            return JSONResponse({"detail": "Cross-origin requests are not allowed"}, status_code=403)
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -69,17 +88,33 @@ async def timing_header(request: Request, call_next):
     return response
 
 
+def safe_filename(name: str | None) -> str:
+    """Keep a display name only: no directories, markup or control characters.
+
+    The filename is stored, shown in the dashboard and sent to the LLM, so it
+    is treated as untrusted input.
+    """
+    base = PureWindowsPath(PurePosixPath(name or "").name).name
+    cleaned = SAFE_FILENAME.sub("_", base).strip(" .")[:100]
+    return cleaned or "upload.jpg"
+
+
 async def _read_image(file: UploadFile) -> Image.Image:
     settings = get_settings()
     if file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(415, f"Unsupported type {file.content_type}; use JPEG/PNG/BMP/TIFF")
-    contents = await file.read()
-    if len(contents) > settings.max_upload_mb * 1024 * 1024:
+        raise HTTPException(415, "Unsupported file type; use JPEG, PNG, BMP or TIFF")
+    limit = settings.max_upload_mb * 1024 * 1024
+    contents = await file.read(limit + 1)  # never pull more than the limit into memory
+    if len(contents) > limit:
         raise HTTPException(413, f"Image larger than {settings.max_upload_mb} MB")
     try:
         image = Image.open(io.BytesIO(contents))
+        if image.width * image.height > settings.max_image_pixels:
+            raise HTTPException(413, "Image dimensions too large")
         image.load()
-    except (UnidentifiedImageError, OSError) as exc:
+    except Image.DecompressionBombError as exc:
+        raise HTTPException(413, "Image dimensions too large") from exc
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError) as exc:
         raise HTTPException(400, "Invalid or corrupted image file") from exc
     return image.convert("RGB")
 
@@ -118,7 +153,8 @@ async def predict(
 ):
     """Run detection only (fast path, nothing stored)."""
     image = await _read_image(file)
-    return _detector().predict(image, filename=file.filename or "upload.jpg", conf=conf)
+    # CPU-bound inference runs in a worker thread so it cannot block the event loop.
+    return await run_in_threadpool(_detector().predict, image, safe_filename(file.filename), conf)
 
 
 @app.post("/analyze", response_model=Analysis, tags=["inference"])
@@ -129,13 +165,15 @@ async def analyze(
 ):
     """Detection + quality control + technical report (+ optional storage)."""
     image = await _read_image(file)
-    analysis = analyze_image(
-        _detector(), image, filename=file.filename or "upload.jpg", use_llm=llm
+    # Inference and the (up to 45 s) Gemini call run in a worker thread, so a slow
+    # request cannot stall /health or other clients.
+    analysis = await run_in_threadpool(
+        analyze_image, _detector(), image, safe_filename(file.filename), None, llm
     )
     if persist and state.get("db"):
         from bloodcell.db import encode_jpeg, save_analysis
 
-        analysis.id = save_analysis(analysis, image_jpeg=encode_jpeg(image))
+        analysis.id = await run_in_threadpool(save_analysis, analysis, encode_jpeg(image))
     return analysis
 
 

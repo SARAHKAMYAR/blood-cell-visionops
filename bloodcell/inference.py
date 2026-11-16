@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -10,6 +11,39 @@ from PIL import Image
 
 from bloodcell.config import Settings, get_settings
 from bloodcell.schemas import Detection, Prediction
+
+
+class ModelIntegrityError(RuntimeError):
+    """The weights file does not match the hash recorded when it was promoted."""
+
+
+HASH_KEYS = {".pt": "pt_sha256", ".onnx": "onnx_sha256"}
+
+
+def verify_model_integrity(path: Path) -> bool:
+    """Check `path` against the SHA-256 in model_info.json beside it.
+
+    `.pt` checkpoints are unpickled by Ultralytics (``weights_only=False``), so a
+    tampered file could execute code when loaded. If model_info.json records a
+    hash for this file type, the file must match it before it is loaded.
+    Returns True when a recorded hash was verified, False when none is recorded.
+    """
+    info_file = path.parent / "model_info.json"
+    key = HASH_KEYS.get(path.suffix)
+    if key is None or not info_file.exists():
+        return False
+    expected = json.loads(info_file.read_text()).get(key)
+    if not expected:
+        return False
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for block in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(block)
+    if digest.hexdigest() != expected:
+        raise ModelIntegrityError(
+            f"{path.name} does not match the {key} recorded in model_info.json; refusing to load it."
+        )
+    return True
 
 
 class Detector:
@@ -26,6 +60,7 @@ class Detector:
                 "(scripts/train.py) and run scripts/promote_model.py, or set "
                 "BCV_MODEL_PATH."
             )
+        verify_model_integrity(path)  # before any unpickling happens
         self.model = YOLO(str(path), task="detect")
         self.model_name = self._describe(path)
         self.names: dict[int, str] = self.model.names

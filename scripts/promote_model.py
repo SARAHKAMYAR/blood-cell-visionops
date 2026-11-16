@@ -26,6 +26,42 @@ from bloodcell.config import PROJECT_ROOT  # noqa: E402
 MODELS = PROJECT_ROOT / "models"
 
 
+def _relative(value):
+    """Rewrite absolute paths inside the project to project-relative ones."""
+    if isinstance(value, str) and str(PROJECT_ROOT) in value:
+        return value.replace(str(PROJECT_ROOT) + "/", "").replace(str(PROJECT_ROOT), ".")
+    return value
+
+
+def scrub_checkpoint(path: Path) -> None:
+    """Remove local filesystem paths and git info from an Ultralytics .pt file."""
+    import torch
+
+    ckpt = torch.load(path, map_location="cpu", weights_only=False)  # our own freshly trained file
+    if isinstance(ckpt.get("train_args"), dict):
+        ckpt["train_args"] = {k: _relative(v) for k, v in ckpt["train_args"].items()}
+    ckpt.pop("git", None)
+    for key in ("model", "ema"):  # the pickled nn.Module carries its own copy of the args
+        module = ckpt.get(key)
+        if module is None:
+            continue
+        if isinstance(getattr(module, "args", None), dict):
+            module.args = {k: _relative(v) for k, v in module.args.items()}
+        if hasattr(module, "pt_path"):
+            module.pt_path = _relative(module.pt_path)
+    torch.save(ckpt, path)
+
+
+def scrub_onnx(path: Path) -> None:
+    """Remove local filesystem paths from ONNX metadata (weights untouched)."""
+    import onnx
+
+    model = onnx.load(str(path))
+    for prop in model.metadata_props:
+        prop.value = _relative(prop.value)
+    onnx.save(model, str(path))
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -41,6 +77,7 @@ def main() -> None:
     MODELS.mkdir(exist_ok=True)
     dst = MODELS / "best.pt"
     shutil.copy2(src, dst)
+    scrub_checkpoint(dst)
     print(f"Promoted {src} -> {dst}")
 
     info = {
@@ -55,6 +92,7 @@ def main() -> None:
 
     if not args.no_onnx:
         onnx_path = Path(YOLO(str(dst)).export(format="onnx", imgsz=640, simplify=True, dynamic=False))
+        scrub_onnx(onnx_path)
         info["onnx_sha256"] = sha256(onnx_path)
         print(f"Exported ONNX -> {onnx_path}")
 
