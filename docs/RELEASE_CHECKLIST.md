@@ -23,9 +23,10 @@ repository; ⬜ = still open.
 - ✅ `pip-audit` 2.10.1 on the development environment: no known vulnerabilities.
 
 ## Open
-1. ⬜ **Rotate the Gemini API key** (exposed in a chat log; still active). See `docs/SECURITY_AUDIT.md`, S1.
-2. ⬜ **Decide on old model files in history** (local paths with OS username in earlier commits; S7).
-3. ⬜ **Make the repository public** after 1 and 2 (it was published private first).
+1. ⬜ **Make the repository public** (owner action). Security audit: APPROVED, see `docs/SECURITY_AUDIT.md`.
+
+Resolved: Gemini key rotated (old key verified rejected). Accepted by owner: local paths in old
+commits' model files, and unfixed base-image CVEs (including the unreachable libxml2 CVE-2026-6653).
 
 ## Known open issues (documented, not hidden)
 - Gemini reliability is unmeasured: one successful live call; free-tier quota errors (429) and

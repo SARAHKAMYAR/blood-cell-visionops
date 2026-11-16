@@ -5,14 +5,14 @@ the repository's first public release. This report contains no secret values.
 
 ## 1. Executive summary
 
-**Recommendation: BLOCKED — SECURITY FIXES REQUIRED.** The repository itself is in good shape, but one
-Critical issue outside the code must be resolved first.
+**Recommendation: APPROVED FOR PUBLIC RELEASE** (updated 2026-11-17). The Critical key exposure was
+resolved by rotation, and the owner accepted the two remaining documented risks (S7, S9).
 
 - **No credentials were found in tracked files or in any reachable Git history** (Gitleaks plus manual
   checks over all refs).
-- **One Critical issue outside the repository:** a Gemini API key was exposed in a chat transcript
-  during development and is still active. It was never committed, but it must be revoked and replaced
-  before release.
+- **One Critical issue outside the repository, now resolved:** a Gemini API key exposed in a chat
+  transcript during development was never committed. It has been revoked (Google now rejects it) and
+  replaced.
 - **Fixed in this change:** 5 High/Medium application issues (cross-site access to the local API, LLM
   output able to carry links/HTML into the dashboard, decompression bombs and oversized images,
   event-loop blocking, unpickling of unverified model files) and several hardening items.
@@ -38,15 +38,15 @@ workflow; the Gemini integration.
 
 | ID | Severity | Finding | Status |
 |---|---|---|---|
-| S1 | CRITICAL | Exposed Gemini API key still active | **Open: owner must rotate** |
+| S1 | CRITICAL | Exposed Gemini API key | **Resolved:** revoked and replaced |
 | S2 | HIGH | Any website could read and write the local API through the browser (CORS `*`) | Fixed |
 | S3 | HIGH | LLM narrative could carry links, images, HTML or `javascript:` URLs into the dashboard; the user-supplied filename was sent to the LLM unsanitised | Fixed |
 | S4 | MEDIUM | Decompression bomb caused HTTP 500; 81-megapixel images were decoded; uploads were fully read before the size check | Fixed |
 | S5 | MEDIUM | Inference and the Gemini call (up to 45 s) ran on the event loop, stalling all requests, including `/health` | Fixed |
 | S6 | MEDIUM | `.pt` checkpoints are unpickled by Ultralytics (`weights_only=False`) with no integrity check | Fixed |
-| S7 | MEDIUM | Model files embedded the developer's absolute home-directory path (OS username) and local git info | Fixed in current files; **remains in existing private history** |
+| S7 | MEDIUM | Model files embedded the developer's absolute home-directory path (OS username) and local git info | Fixed in current files; older commits **accepted by owner** (low sensitivity, no secrets) |
 | S8 | MEDIUM | Outdated pip/setuptools/zlib in our images (fixable CVEs) | Fixed |
-| S9 | MEDIUM | Base-image OS packages with no upstream fix (Debian 13, Postgres Alpine Go runtime) | Documented |
+| S9 | MEDIUM | Base-image OS packages with no upstream fix (Debian 13, Postgres Alpine Go runtime) | Documented; **accepted by owner** |
 | S10 | MEDIUM | Demo deployment: no auth or rate limiting, default DB password, no container resource limits | Documented (localhost-only by design) |
 | S11 | LOW | CI: no explicit token permissions, actions pinned by tag, checkout kept credentials, no Dependabot | Fixed |
 | S12 | LOW | Dashboard displayed raw database/HTTP exception text; QC status inserted into raw HTML unvalidated | Fixed |
@@ -61,8 +61,9 @@ workflow; the Gemini integration.
 log, and it is also in the git-ignored local `.env` file. *Evidence:* a model-list request with that key
 succeeded during the audit. Gitleaks found it only in `.env` (ignored, never committed), and 0 times in
 history. *Impact:* anyone with the transcript can spend the account's quota. *Remediation:* revoke it in
-Google AI Studio, create a new key, and put it only in `.env`. *Verify:* the old key is rejected and the
-new key lists models.
+Google AI Studio, create a new key, and put it only in `.env`. *Verified 2026-11-17:* the old key is
+rejected by Google (HTTP 400), and the new key lists models. The new key is only in the git-ignored
+`.env` and appears in no tracked file or reachable history.
 
 **S2: cross-site access to the local API (HIGH).** *Where:* `bloodcell/api.py` (was
 `CORSMiddleware(allow_origins=["*"])`). *Evidence:* a preflight from `https://evil.example` returned
@@ -110,8 +111,12 @@ still contain the old files. Removing them needs a history rewrite and a force-p
 | Dashboard (Debian 13 + Python 3.11) | 0 | 48 | 93 | 0 C / 1 H / 1 M |
 | `postgres:16-alpine` (upstream, latest digest) | 1 | 25 | 31 | all, upstream only |
 
-The API image's Critical finding (`libxml2`) and nearly all High findings are Debian packages with no
-fixed version published yet. Fixed by this change: Debian security updates are applied at build time,
+The API image's Critical finding is CVE-2026-6653 in `libxml2`: a use-after-free in the XML parser
+that crafted XML can trigger (NVD 9.8; Red Hat rates it lower, availability impact only). Debian has
+no fix yet. It is **not reachable from this application:** the app never parses XML, uploads are decoded
+by Pillow, `lxml` is not installed, and no Python extension in the image links libxml2. It is present only
+as a dependency of the OpenCV/Mesa graphics libraries. Nearly all High findings are likewise Debian
+packages with no fixed version published yet. Fixed by this change: Debian security updates are applied at build time,
 and pip/setuptools/wheel are upgraded (which removes the vendored `wheel` and `jaraco.context` CVEs).
 The remaining "fixable" item is a `setuptools 70.3.0` record that Trivy reports without a file path. The
 image actually has setuptools 84.2.1 installed, plus a 79.0.1 wheel bundled with Python's `ensurepip`,
@@ -163,9 +168,7 @@ tests in `tests/test_security.py`. No tests were weakened or removed.
 
 ## 6. Remaining risks
 
-- **S1** until the key is rotated.
-- **S7** in the existing private history (local paths in old model files) until the history is rewritten,
-  or until the owner accepts it.
+- **S7:** the OS username and project path remain readable in old commits' model files (accepted).
 - **S9:** unpatched base-image packages. Rebuild regularly; Dependabot will propose base updates.
 - **S10:** no authentication. Do not expose the stack beyond localhost.
 - **S16:** an LLM can still be steered by plain text. Mitigated: it has no tools, no file or database
@@ -194,13 +197,13 @@ Dependabot configured. CI is verified on GitHub after each push.
 
 ## 10. Publication recommendation
 
-**BLOCKED — SECURITY FIXES REQUIRED** until:
+**APPROVED FOR PUBLIC RELEASE.**
 
-1. **S1:** the exposed Gemini key is revoked and replaced.
-2. **S7:** the owner either approves a history rewrite that removes the old model files' local paths
-   (and force-pushes to the still-private remote), or explicitly accepts that the OS username and
-   project path stay visible in old commits.
+- S1 is resolved: the exposed key was revoked (verified rejected) and replaced.
+- S7 (old model metadata in history) and S9 (unfixed base-image packages, including the unreachable
+  libxml2 CVE) are accepted by the owner. The repository is kept rather than recreated, so the old commits
+  stay reachable, including through GitHub's retained pull-request refs.
+- No credentials are present in tracked files or reachable history.
 
-Once both are done, with Medium and Low items as documented above, the recommendation becomes
-**APPROVED FOR PUBLIC RELEASE**. No configuration is ever risk-free; the remaining risks are listed in
-section 6.
+This is not a claim of zero risk; the remaining risks are listed in section 6. Re-run the scanners
+before future releases.
