@@ -6,6 +6,8 @@ Versions are those installed when the released model was trained and evaluated;
 licence strings are copied from each package's own metadata. It is a factual
 record, not legal advice.
 
+The original code in this repository is licensed under AGPL-3.0 (see `LICENSE`).
+
 ## 1. Ultralytics YOLO (code and model weights): AGPL-3.0
 
 - **Code:** the `ultralytics` Python package (version 8.4.212) is imported by

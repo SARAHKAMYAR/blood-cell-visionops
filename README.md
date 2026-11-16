@@ -201,6 +201,6 @@ docs/                 MODEL_CARD.md, EVALUATION_UNCERTAINTY.md, RELEASE_CHECKLIS
 
 ## Licence
 
-A project licence has not been selected yet; until one is added, no reuse rights are granted for the original code in this repository.
+Blood Cell VisionOps is released under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0). If you run a modified version as a network service, the AGPL requires you to offer its source to the users of that service.
 
 Third-party components and their licences are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): Ultralytics YOLO code and the fine-tuned weights are AGPL-3.0, and the BCCD dataset is MIT.
