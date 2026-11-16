@@ -1,0 +1,14 @@
+.venv
+**/.venv
+.git
+BCCD_Dataset
+data
+runs
+logs
+reports
+models
+*.pt
+*.zip
+**/__pycache__
+**/.streamlit/secrets.toml
+.env

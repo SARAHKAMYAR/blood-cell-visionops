@@ -1,0 +1,74 @@
+{
+  "run": "yolo11n_e100",
+  "params_m": 2.61,
+  "weights_mb": 5.5,
+  "overall": {
+    "precision": 0.8561,
+    "recall": 0.9203,
+    "mAP50": 0.9463,
+    "mAP50_95": 0.6443
+  },
+  "per_class": {
+    "RBC": {
+      "precision": 0.7718,
+      "recall": 0.8718,
+      "mAP50": 0.9115,
+      "mAP50_95": 0.6442
+    },
+    "WBC": {
+      "precision": 0.9722,
+      "recall": 1.0,
+      "mAP50": 0.9938,
+      "mAP50_95": 0.7845
+    },
+    "Platelets": {
+      "precision": 0.8242,
+      "recall": 0.889,
+      "mAP50": 0.9337,
+      "mAP50_95": 0.5043
+    }
+  },
+  "counting": {
+    "images": 56,
+    "conf": 0.25,
+    "count_mae": {
+      "RBC": 7.482,
+      "WBC": 0.018,
+      "Platelets": 0.286
+    },
+    "count_bias": {
+      "RBC": 7.446,
+      "WBC": 0.018,
+      "Platelets": 0.107
+    },
+    "gt_mean": {
+      "RBC": 11.29,
+      "WBC": 1.0,
+      "Platelets": 1.04
+    },
+    "wbc_exact_match": 0.982,
+    "calibrated": {
+      "conf": {
+        "RBC": 0.55,
+        "WBC": 0.15,
+        "Platelets": 0.1
+      },
+      "count_mae": {
+        "RBC": 3.107,
+        "WBC": 0.018,
+        "Platelets": 0.464
+      },
+      "count_bias": {
+        "RBC": 0.571,
+        "WBC": 0.018,
+        "Platelets": 0.321
+      },
+      "gt_mean": {
+        "RBC": 11.29,
+        "WBC": 1.0,
+        "Platelets": 1.04
+      },
+      "wbc_exact_match": 0.982
+    }
+  }
+}

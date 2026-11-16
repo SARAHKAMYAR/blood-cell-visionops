@@ -1,0 +1,26 @@
+# Python
+.venv/
+**/.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets
+.env
+.env.*
+!.env.example
+**/secrets.toml
+
+# Data & experiment artefacts (reproducible via `make data train evaluate`)
+BCCD_Dataset/
+data/
+runs/
+logs/
+reports/predictions/
+/yolo*.pt
+*.zip
+
+# macOS
+.DS_Store

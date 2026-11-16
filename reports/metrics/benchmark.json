@@ -1,0 +1,52 @@
+[
+  {
+    "weights": "models/best.pt",
+    "format": "pt",
+    "device": "cpu",
+    "n": 50,
+    "mean_ms": 19.88,
+    "p50_ms": 19.85,
+    "p95_ms": 20.59,
+    "fps": 50.3
+  },
+  {
+    "weights": "models/best.pt",
+    "format": "pt",
+    "device": "mps",
+    "n": 50,
+    "mean_ms": 10.93,
+    "p50_ms": 10.61,
+    "p95_ms": 12.98,
+    "fps": 91.5
+  },
+  {
+    "weights": "models/best.onnx",
+    "format": "onnx",
+    "device": "cpu",
+    "n": 50,
+    "mean_ms": 18.86,
+    "p50_ms": 18.66,
+    "p95_ms": 20.28,
+    "fps": 53.0
+  },
+  {
+    "weights": "runs/yolo11s_e100/weights/best.pt",
+    "format": "pt",
+    "device": "cpu",
+    "n": 50,
+    "mean_ms": 38.51,
+    "p50_ms": 38.45,
+    "p95_ms": 39.36,
+    "fps": 26.0
+  },
+  {
+    "weights": "runs/yolo11s_e100/weights/best.pt",
+    "format": "pt",
+    "device": "mps",
+    "n": 50,
+    "mean_ms": 15.65,
+    "p50_ms": 15.69,
+    "p95_ms": 17.0,
+    "fps": 63.9
+  }
+]
