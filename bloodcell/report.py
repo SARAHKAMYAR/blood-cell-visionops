@@ -35,6 +35,13 @@ DISCLAIMER = (
     "Not validated for patient care._"
 )
 
+# Gemini "thinking" tokens count against the output budget. A live call showed
+# ~1,000 thinking tokens for a ~150-token answer, which truncated the JSON at a
+# 1,024-token limit, so the budget leaves ample room for both.
+GEMINI_MAX_OUTPUT_TOKENS = 4096
+# Never let a slow LLM call hold an API request open indefinitely.
+GEMINI_TIMEOUT_MS = 45_000
+
 SYSTEM_INSTRUCTION = """\
 You are a laboratory computer-vision QA assistant. You write the narrative \
 parts of a technical report about one automated blood-smear detection run. \
@@ -163,14 +170,17 @@ def _call_gemini(payload: dict, settings: Settings) -> str:
     from google import genai
     from google.genai import types
 
-    client = genai.Client(api_key=settings.gemini_api_key)
+    client = genai.Client(
+        api_key=settings.gemini_api_key,
+        http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS),
+    )
     response = client.models.generate_content(
         model=settings.gemini_model,
         contents="Measurements (JSON):\n" + json.dumps(payload, indent=2),
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_INSTRUCTION,
             temperature=0.2,
-            max_output_tokens=1024,
+            max_output_tokens=GEMINI_MAX_OUTPUT_TOKENS,
             response_mime_type="application/json",
             response_schema=LLMNarrative,
         ),

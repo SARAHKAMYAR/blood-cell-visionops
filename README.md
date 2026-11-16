@@ -165,12 +165,12 @@ A rejected narrative, invalid JSON, an empty or blocked response, or an API erro
 
 **This does not prevent every wrong statement.** The checker tests traceability, not meaning. It accepts a real number reused with the wrong meaning or unit, a wrong QC figure that happens to equal another value, prose that contradicts the QC status while naming it, numbers written as words, and clinical wording outside its term list. The code-rendered tables in each report are the source of truth.
 
-**Verification status:** 33 automated tests cover valid, inconsistent, fabricated, malformed and failed-API cases using recorded outputs. **No live Gemini call has been made yet**; `python scripts/live_gemini_check.py` performs one and saves an example report to `docs/examples/`.
+**Verification status:** 35 automated tests cover valid, inconsistent, fabricated, malformed, truncated and failed-API cases using recorded outputs. One **live** call (`gemini-3.6-flash`, via `scripts/live_gemini_check.py`) returned valid structured JSON that passed the claim check with 13 numeric values checked; the unedited result is in [docs/examples/gemini_report_example.md](docs/examples/gemini_report_example.md). That is a single successful call, not a reliability measurement. Live testing also exposed a bug the mocked tests could not: Gemini's internal reasoning tokens used up a 1,024-token output limit and truncated the JSON, so the limit was raised and a request timeout added.
 
 ## Testing
 
 ```bash
-make test          # 68 tests: QC maths, API contract, report checker, statistics, NMS alignment, real model
+make test          # 70 tests: QC maths, API contract, report checker, statistics, NMS alignment, real model
 make lint          # ruff
 ```
 
@@ -193,7 +193,7 @@ bloodcell/            config, schemas, inference, qc, report, report_validation,
 dashboard/app.py      Streamlit UI (no torch dependency)
 scripts/              prepare_dataset, train, evaluate, export_predictions, bootstrap_eval,
                       promote_model, benchmark, make_figures, ingest, live_gemini_check
-tests/                68 tests
+tests/                70 tests
 models/               served weights and model_info.json
 reports/              metrics (JSON) and per-image test artefacts
 docs/                 MODEL_CARD.md, EVALUATION_UNCERTAINTY.md, RELEASE_CHECKLIST.md, figures

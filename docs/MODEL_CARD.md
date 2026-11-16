@@ -49,7 +49,8 @@ Metrics on the held-out **test** split (never used for training or model selecti
 - Claim check (deterministic, no second LLM): every number must trace to the payload at its written precision; class- and total-attached numbers must equal that specific count; the summary must state the total and QC status; listed clinical terms are rejected. In a one-off manual check, 0 of 112 faithful narratives from test-set outputs were falsely rejected.
 - Known gaps in the claim check: it tests traceability, not meaning. It accepts a real number reused with the wrong meaning or unit, a wrong QC figure that equals another payload value, prose that contradicts the QC status while naming it, numbers written as words, and clinical wording outside the term list. The code-rendered tables are the source of truth.
 - Guardrails: temperature 0.2; template fallback on missing key, API error, empty or safety-blocked response, invalid JSON, schema violation or failed verification; the reason is returned in `report_validation`; the disclaimer is appended in code.
-- Not yet verified against the live Gemini API (no key in the development environment); all LLM paths are tested with recorded outputs.
+- Live verification: one real call to `gemini-3.6-flash` produced schema-valid JSON that passed the claim check (see `docs/examples/gemini_report_example.md`). One call is not a reliability estimate; rejection and fallback rates under real traffic are unmeasured. The default model is set by `GEMINI_MODEL`; other paths are tested with recorded outputs.
+- Output budget: reasoning ("thinking") tokens count against `max_output_tokens`; the budget is 4,096 and requests time out after 45 s, then fall back to the template.
 
 ## Ethical considerations
 Automated counts can create false confidence. The system shows QC status and reviewer actions next to every result and labels all output as research-only.

@@ -4,7 +4,7 @@ Status of Blood Cell VisionOps for public release. ✅ = done and checked in thi
 repository; ⬜ = still open.
 
 ## Verified
-- ✅ 68 automated tests pass offline (`make test`); lint is clean (`make lint`).
+- ✅ 70 automated tests pass offline (`make test`); lint is clean (`make lint`).
 - ✅ Docker Compose stack builds and runs (PostgreSQL + API + dashboard); `/health`, `/predict`,
   `/analyze` and upload validation exercised with real BCCD images against the running API.
 - ✅ All four dashboard tabs render without errors; screenshot captured from the running stack
@@ -18,15 +18,18 @@ repository; ⬜ = still open.
 - ✅ Released under AGPL-3.0 (`LICENSE`); third-party licences recorded in `THIRD_PARTY_NOTICES.md`.
 - ✅ GitHub Actions passed on `main` (lint, tests, both Docker image builds).
 - ✅ Commit history uses a GitHub no-reply address.
+- ✅ One live Gemini call succeeded (`gemini-3.6-flash`): schema-valid JSON, claim check passed with 13
+  numeric values; example saved in `docs/examples/gemini_report_example.md`.
+- ✅ `pip-audit` 2.10.1 on the development environment: no known vulnerabilities.
 
 ## Open
-1. ⬜ **Live Gemini check.** No API key was available, so no real call has been made. Put
-   `GEMINI_API_KEY=...` in `.env` (never commit it), then run `python scripts/live_gemini_check.py`.
-   It makes one request, prints the claim-check result and saves `docs/examples/gemini_report_example.md`.
-2. ⬜ **Dependency vulnerability scan** (`pip-audit` was not installed in the development environment).
-3. ⬜ **Make the repository public** once the items above are accepted or done (it was published private first).
+1. ⬜ **Make the repository public** (it was published private first).
 
 ## Known open issues (documented, not hidden)
+- Gemini reliability is unmeasured: one successful live call; free-tier quota errors (429) and
+  transient server errors (5xx) were also observed and handled by the template fallback.
+- Docker images install unpinned dependency versions, so the vulnerability scan covers the
+  development environment, not a specific image build.
 - Platelet threshold calibration slightly worsens platelet counting on test (+0.18, CI excludes 0).
   Do not tune this on the test set.
 - 56 test images: several model differences are not resolved (`docs/EVALUATION_UNCERTAINTY.md`).

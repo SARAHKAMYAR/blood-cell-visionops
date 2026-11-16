@@ -256,3 +256,18 @@ def test_sentence_final_numbers_are_parsed(sample_prediction, qc):
     assert verify_narrative(ok, _payload(sample_prediction, qc)).status == "verified"
     bad = _narrative(summary="QC status is PASS. The WBC count was 3.")
     assert verify_narrative(bad, _payload(sample_prediction, qc)).status == "rejected"
+
+
+def test_gemini_limits_leave_room_for_thinking_and_bound_latency():
+    # Regression: a live call spent ~980 "thinking" tokens, truncating the JSON at a 1,024 budget.
+    assert report.GEMINI_MAX_OUTPUT_TOKENS >= 4096
+    assert 0 < report.GEMINI_TIMEOUT_MS <= 60_000
+
+
+def test_truncated_json_falls_back(sample_prediction, qc, llm_settings, monkeypatch):
+    # Exactly what the live API returned when the token budget ran out mid-string.
+    fake_gemini(monkeypatch, '{"summary":"Automated detection yielded 4 total detections with a quality control status of')
+    text, source, validation = report.generate_report(sample_prediction, qc, llm_settings)
+    assert source == "template_fallback"
+    assert any("invalid structured output" in i for i in validation.issues)
+    assert "### Summary" in text
