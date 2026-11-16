@@ -39,6 +39,7 @@ Metrics on the held-out **test** split (never used for training or model selecti
 - WBC sub-types (neutrophil, lymphocyte, ...) are **not** distinguished.
 - **Platelet threshold calibration does not transfer:** the val-calibrated platelet threshold (0.10) increases test count error versus conf 0.25 (+0.18 per image, 95% CI [+0.05, +0.30]). The validation set has too few platelets (~1 per image) to calibrate this class reliably. Open issue.
 - **Counts depend on NMS settings.** Thresholds were calibrated with NMS IoU 0.5; serving uses the same value (`BCV_IOU`). Changing it invalidates the calibration.
+- **PyTorch vs ONNX:** reported metrics use the PyTorch weights. The ONNX export served in Docker uses a fixed 640×640 input and gives slightly different detections (test count error RBC 2.62 · WBC 0.02 · Platelets 0.41, measured through the serving code).
 - **Small test set:** 56 images. YOLO11n vs YOLO11s and 100-epoch vs 5-epoch training are not resolved overall at 95%; this is not evidence of equivalence.
 
 ## LLM report component

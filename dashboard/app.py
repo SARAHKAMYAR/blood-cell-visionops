@@ -335,7 +335,11 @@ with tab_analytics:
 
 # ---- Model performance --------------------------------------------------- #
 with tab_model:
-    files = sorted(p for p in METRICS_DIR.glob("*.json") if p.name != "benchmark.json") if METRICS_DIR.exists() else []
+    # Only per-model result files (they carry a "run" key); skip benchmark.json, bootstrap.json, etc.
+    files = [
+        p for p in (sorted(METRICS_DIR.glob("*.json")) if METRICS_DIR.exists() else [])
+        if isinstance(json.loads(p.read_text()), dict) and "run" in json.loads(p.read_text())
+    ]
     if not files:
         st.info("Run `make evaluate` to populate held-out test metrics.")
     else:

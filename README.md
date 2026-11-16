@@ -1,37 +1,28 @@
 # 🔬 Blood Cell VisionOps
 
-**End-to-end computer-vision system that detects and counts red blood cells, white blood cells and platelets in microscopy images, with automated quality control, LLM-written technical reports (Gemini) whose numbers are checked against the detector output, a REST API, a PostgreSQL results store and a review dashboard. One `docker compose up` runs it all.**
+**An end-to-end computer-vision system that detects and counts red blood cells, white blood cells and platelets in microscopy images, flags unreliable results automatically, and writes an LLM report whose numbers are checked against the detector output.**
 
-![Python](https://img.shields.io/badge/python-3.11-blue) ![YOLO11](https://img.shields.io/badge/model-YOLO11-purple) ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688) ![Gemini](https://img.shields.io/badge/LLM-Gemini-4285F4) ![Docker](https://img.shields.io/badge/deploy-Docker%20Compose-2496ED) ![CI](https://img.shields.io/badge/CI-GitHub%20Actions-black)
+![Python](https://img.shields.io/badge/python-3.11-blue) ![YOLO11](https://img.shields.io/badge/model-YOLO11-purple) ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688) ![Gemini](https://img.shields.io/badge/LLM-Gemini-4285F4) ![Docker](https://img.shields.io/badge/deploy-Docker%20Compose-2496ED)
 
-> ⚠️ Research & education project. Not a medical device; not for clinical diagnosis.
+> ⚠️ Research and education project. Not a medical device, not validated for clinical use, and not for diagnosis.
 
-![Ground truth vs. prediction on held-out test images](docs/assets/predictions_grid.png)
+![Dashboard: case review with cell counts, QC status and detections](docs/assets/dashboard.png)
 
----
+*The Review tab on a held-out BCCD image: per-class counts, the automated QC result, and the original image next to the model's detections (blue = RBC, orange = WBC, green = platelets), served by the API from the ONNX model.*
 
-## Why this project
+## Key capabilities
 
-Manual blood-cell counting under a microscope is slow and subjective. This project builds the whole system a lab would need, not only the model:
-
-| Layer | What it does |
-|---|---|
-| **Data** | Converts the BCCD Pascal-VOC dataset to YOLO format, with a seeded 70/15/15 split and box sanitisation |
-| **Modelling** | Fine-tunes YOLO11n and YOLO11s with microscopy-appropriate augmentation (vertical flips, rotations), cosine LR and early stopping |
-| **Evaluation** | Held-out test-set mAP plus **per-image counting error**, with **paired image-level bootstrap confidence intervals** for every model comparison |
-| **Optimisation** | ONNX export, latency benchmark (PyTorch vs ONNX Runtime, CPU vs Apple MPS) |
-| **Quality control** | Flags every prediction automatically: low confidence, duplicate/overlapping boxes, border-truncated cells, biologically implausible counts. Result: PASS / REVIEW / FAIL |
-| **AI reporting** | Gemini writes only the *narrative*, as schema-validated JSON, from aggregate measurements (no image, no diagnosis). Every number in it must be **traceable to the detector/QC output**, and per-class and total counts are cross-checked (rule-based, with [known gaps](#checked-ai-reports)); tables are rendered by code; any failure falls back to a template |
-| **Serving** | FastAPI with typed Pydantic contracts, upload validation, health check, timing headers, OpenAPI docs |
-| **Storage** | PostgreSQL (JSONB detections + QC) for audit trail and analytics |
-| **UI** | Streamlit dashboard: live analysis, case review with an interactive confidence filter, population analytics, model leaderboard |
-| **Engineering** | Docker Compose, env-based config, auto device selection (CUDA/MPS/CPU), pytest suite, ruff, GitHub Actions CI |
+- **Detection and counting:** a fine-tuned YOLO11n model, served as PyTorch or ONNX.
+- **Automated quality control:** every image gets PASS, REVIEW or FAIL from confidence statistics, overlapping boxes, border-truncated cells and plausibility rules.
+- **Grounded LLM reports:** Gemini writes only the narrative, as schema-validated JSON; a rule-based checker rejects fabricated or inconsistent numbers, and a template takes over on any failure.
+- **Honest evaluation:** held-out test metrics, per-image counting error, and paired bootstrap confidence intervals for every model comparison.
+- **A complete service:** REST API, PostgreSQL audit trail, review dashboard, Docker Compose, tests and CI.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    U[User / Lab system] -->|image| API
+    U[User / lab system] -->|image| API
     D[Streamlit dashboard] -->|POST /analyze| API
     subgraph API[FastAPI service]
         M[YOLO11 detector<br/>PyTorch or ONNX] --> Q[Quality control<br/>IoU · confidence · edge · plausibility]
@@ -42,95 +33,18 @@ flowchart LR
         V -->|rejected| T[Template report]
         R -->|no / API error| T
     end
-    API -->|JSONB| P[(PostgreSQL)]
+    API -->|JSONB + image| P[(PostgreSQL)]
     P --> D
 ```
 
-## Results
-
-All numbers are on the **held-out test split** (56 images, 746 labelled cells), never used for training, model selection or threshold calibration. Brackets are **95% confidence intervals** from a paired, image-level bootstrap (B = 2000); method, all comparisons and limitations are in [docs/EVALUATION_UNCERTAINTY.md](docs/EVALUATION_UNCERTAINTY.md).
-
-### Detection
-
-| Model | Params | mAP@0.5 | mAP@0.5:0.95 | Latency CPU | Latency Apple M4 (MPS) |
-|---|---|---|---|---|---|
-| 5-epoch baseline (YOLO11n) | 2.6 M | 0.933 [0.904, 0.952] | 0.629 [0.600, 0.661] | n/a | n/a |
-| **YOLO11n, 100 ep (served)** | **2.6 M** | 0.946 [0.924, 0.961] | 0.644 [0.618, 0.677] | **18.9 ms (ONNX)** | **10.9 ms** |
-| YOLO11s, 100 ep | 9.4 M | 0.946 [0.922, 0.963] | 0.650 [0.626, 0.677] | 38.5 ms | 15.7 ms |
-
-| Class (served model) | mAP@0.5:0.95 |
-|---|---|
-| RBC | 0.644 [0.612, 0.675] |
-| WBC | 0.784 [0.751, 0.822] |
-| Platelets | 0.504 [0.453, 0.562] |
-
-![Training curves](docs/assets/training_curves.png)
-
-**Paired comparisons (same resampled images for both models):**
-
-| Comparison | Δ mAP@0.5:0.95 | 95% CI | What the test set supports |
-|---|---|---|---|
-| YOLO11s − YOLO11n | +0.005 | [−0.008, +0.019] | Not resolved: this test set cannot rank them overall |
-| 5-epoch baseline − YOLO11n | −0.015 | [−0.037, +0.004] | Not resolved overall; the longer training's gain is resolved **only for RBC** (−0.030, CI [−0.046, −0.013]) |
-
-**Model choice:** YOLO11s costs 3.6× the parameters and 2× the CPU latency, and its overall accuracy gain is not resolved by this test set. It does count platelets better (count MAE −0.21, CI [−0.38, −0.07]). YOLO11n is served for latency. "Not resolved" is **not** a claim that the models are equivalent; with 56 images, the interval still allows anything from YOLO11s being 0.008 worse to 0.019 better in mAP@0.5:0.95.
-
-### Counting: finding and fixing a label-noise problem
-
-Counts are the product, so I measured **per-image count error** against ground truth, and found a surprise:
-
-| Threshold strategy (served model) | RBC MAE (bias) | WBC MAE | Platelet MAE |
-|---|---|---|---|
-| Global conf 0.25 (Ultralytics default) | 7.48 (**+7.45**) | 0.02 | 0.29 |
-| **Per-class thresholds calibrated on the val split** | **3.11** (+0.57) | 0.02 | 0.46 |
-| Paired effect of calibration, 95% CI | **−4.38 [−5.52, −3.16]** | 0.00 (identical) | **+0.18 [+0.05, +0.30]** |
-
-The model "over-counted" RBCs by +7.5 per image (ground-truth mean: 11.3). Inspecting predictions showed the model was mostly right: **BCCD annotators often skipped RBCs**. In the second row of the image above, the ground truth has 5 RBCs where about 14 are clearly visible. Because counts are compared with these labels, I calibrated a confidence threshold *per class* on the **validation** split (no test leakage). RBC count error fell by 4.4 cells per image (−58%), a difference the bootstrap resolves clearly.
-
-**What did not work:** the val-calibrated platelet threshold (0.10) made platelet counting *worse* on test (+0.18 per image, resolved). With only ~1 platelet per image, 54 validation images are too few to calibrate that class reliably. This is an open issue (see [Release status](#release-status)), not something to tune on the test set.
-
-> Caveats: the RBC calibration partly aligns the model with *BCCD's annotation density*; on fully labelled data the optimal RBC threshold would likely be lower. Counting metrics are computed through the exact serving configuration (NMS IoU 0.5), because NMS settings change which boxes survive. See the [model card](docs/MODEL_CARD.md).
-
-### Checked AI reports
-
-Gemini never produces the tables or measurements in a report. It returns a JSON narrative (`summary`, `quality_assessment`, `reviewer_actions`) validated against a Pydantic schema. A rule-based checker (no second LLM) then rejects the narrative if:
-
-- any number cannot be traced to the detector/QC output (fabricated measurements such as cell sizes or haematocrit);
-- a number attached to a class or the total contradicts that specific count (e.g. "17 RBCs" when 16 were detected, even if 17 appears elsewhere in the data);
-- the summary omits the total count or the QC status;
-- it uses clinical or diagnostic terms.
-
-Rejected narratives, invalid JSON, empty or safety-blocked responses and API errors all fall back to the deterministic template, and the API response records why (`report_validation`). 33 tests cover valid, inconsistent, hallucinated, malformed and failed-API cases. In a one-off check (run by hand, not part of the test suite), 112 faithful narratives written from real test-set outputs produced **0 false rejections**.
-
-**What the checker does not catch.** It checks that numbers are *traceable* and that counts tied to a cell class or the total are right. It does not understand meaning, so these pass:
-
-- a real number reused with the wrong meaning or unit (the image width 640 written as "640 cells per microlitre", or another class's share quoted for RBCs);
-- a wrong QC figure that happens to equal some other value in the data ("1 overlapping pair" when there are 0 but the WBC count is 1);
-- prose that contradicts the QC status while still naming it;
-- numbers written as words ("seventeen RBCs");
-- clinical wording outside the fixed term list.
-
-The checker is a guard against fabricated and inconsistent figures, not a proof of correctness. The code-rendered tables in the same report are the source of truth. The live Gemini API has not been exercised yet; all LLM paths are tested with recorded outputs.
-
-## Dashboard
-
-<!--
-  RELEASE TODO: add a screenshot here, then delete this comment.
-  File: docs/assets/dashboard.png (≈1440×900, PNG, < 500 kB).
-  Suggested view: "Review" tab on a REVIEW-status image showing the QC badge,
-  flags and side-by-side detections. Steps are in docs/RELEASE_CHECKLIST.md.
-
-  ![Dashboard: case review with QC flags and detections](docs/assets/dashboard.png)
--->
-
-Four tabs: **Analyze** (upload an image; see detections, QC and the checked report), **Review** (stored cases with QC filters and a per-class confidence filter), **Analytics** (count distributions, QC outcomes, latency) and **Model performance** (held-out metrics and diagnostic plots).
+**Stack:** Python 3.11 · Ultralytics YOLO11 · PyTorch · ONNX Runtime · FastAPI · Pydantic · Google Gemini (`google-genai`) · PostgreSQL 16 · Streamlit · Docker Compose · pytest · ruff · GitHub Actions.
 
 ## Quick start
 
-### Option A: full stack with Docker (recommended)
+### Run the stack (Docker)
 
 ```bash
-cp .env.example .env          # add GEMINI_API_KEY for LLM reports (optional)
+cp .env.example .env          # optional: add GEMINI_API_KEY for LLM reports
 docker compose up --build -d
 ```
 
@@ -138,112 +52,155 @@ docker compose up --build -d
 |---|---|
 | Dashboard | http://localhost:8501 |
 | API docs (Swagger) | http://localhost:8000/docs |
-| PostgreSQL | `localhost:5433` (user/pass `bloodcell`) |
+| PostgreSQL | `localhost:5433` |
 
-The trained model ships in `models/` (PyTorch + ONNX), so no training is needed to run the demo.
-
-Populate the database with the test split. The dataset is not in the repository, so this needs the local venv and the data first (see Option B):
+The trained model ships in `models/`, so no training is needed. All ports bind to `127.0.0.1`; if one is taken, set `API_PORT`, `DASHBOARD_PORT` or `DB_PORT` in `.env`. Upload any blood-smear image in the dashboard's **Analyze** tab, or call the API:
 
 ```bash
-make install       # once
-make data          # downloads BCCD and builds the test split
-make ingest
+curl -F "file=@your_smear.jpg;type=image/jpeg" "http://localhost:8000/analyze"
 ```
 
-The dashboard's Review tab works without the dataset, because analysed images are stored in PostgreSQL. The diagnostic plots in the Model performance tab only appear after `make evaluate`.
-
-### Option B: local development
-
-```bash
-make install       # Python 3.11 venv + all extras
-make data          # clone BCCD + convert to YOLO format
-make train         # YOLO11n + YOLO11s, 100 epochs each
-make evaluate      # test-set metrics -> reports/metrics/*.json
-make stats         # per-image artefacts + paired bootstrap CIs
-make promote       # best run -> models/best.pt + best.onnx
-make benchmark     # latency table
-make api           # http://localhost:8000/docs
-make dashboard     # http://localhost:8501
-make test          # pytest
-```
-
-### API example
-
-```bash
-curl -F "file=@BCCD_Dataset/BCCD/JPEGImages/BloodImage_00003.jpg;type=image/jpeg" \
-     "http://localhost:8000/analyze?persist=true"
-```
+Response for BCCD image `BloodImage_00003.jpg` from the Docker stack (abridged):
 
 ```jsonc
 {
   "id": 57,
-  "filename": "BloodImage_00003.jpg",
   "model_name": "yolo11n_e100 (onnx)",
-  "inference_ms": 23.3,
   "total_detections": 19,
-  "counts": { "RBC": 16, "WBC": 1, "Platelets": 2 },
+  "counts": { "RBC": 15, "WBC": 1, "Platelets": 3 },
   "quality_control": {
-    "status": "PASS", "average_confidence": 0.773,
-    "low_confidence_count": 1, "overlapping_pair_count": 0,
-    "edge_truncated_count": 8, "flags": []
+    "status": "PASS", "average_confidence": 0.7421,
+    "low_confidence_count": 2, "overlapping_pair_count": 0,
+    "edge_truncated_count": 5, "flags": []
   },
-  "report_source": "gemini",          // "template" when no GEMINI_API_KEY
+  "report_source": "template",        // "gemini" when a key is set and the narrative passes the check
+  "report_validation": { "status": "not_applicable", "numbers_checked": 0, "issues": [] },
   "ai_report": "### Summary\n...",
-  "detections": [{ "class": "RBC", "confidence": 0.9017, "bbox": [508.78, 6.62, 627.13, 143.69] }]
+  "detections": [{ "class": "RBC", "confidence": 0.8997, "bbox": [315.06, 88.98, 428.53, 199.45] }]
 }
 ```
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /health` | Model, device, DB and LLM status |
-| `POST /predict` | Detection only (fast path, `?conf=` override) |
-| `POST /analyze` | Detection + QC + report, optionally persisted |
-| `GET /analyses` | Stored history |
-| `GET /analyses/{id}` | One stored analysis |
+| `GET /health` | Model, device, thresholds, DB and LLM status |
+| `POST /predict` | Detection only (`?conf=` overrides the thresholds) |
+| `POST /analyze` | Detection + QC + report, stored unless `?persist=false` |
+| `GET /analyses`, `GET /analyses/{id}` | Stored history |
 
-## Design decisions
+### Reproduce from scratch (local)
 
-- **Counting error as a first-class metric.** mAP rewards box quality, but users consume *counts*. `scripts/evaluate.py` reports per-class count MAE against ground truth on every test image.
-- **Grounded and checked LLM, never on the critical path.** Gemini only receives aggregates, writes prose only, and every number it writes must be traceable to the detector output before a user sees it. The check is rule-based rather than a second LLM, so it is reproducible and testable, with documented blind spots. An outage, invalid output or failed check never breaks the API.
-- **Uncertainty before conclusions.** Model comparisons are paired bootstrap intervals over images, checked against `model.val()` before they are reported, and worded so that "not resolved" is never read as "equivalent".
-- **QC before trust.** Every prediction gets a PASS/REVIEW/FAIL status, so reviewers look at the right images first.
-- **Domain-aware augmentation.** Microscopy has no "up", so vertical flips and rotations are safe and help with the small dataset (254 training images).
-- **One codebase, many runtimes.** All paths and devices come from env vars; the same code runs on an M-series Mac (MPS), a CUDA box, CPU-only Docker and CI.
-- **Lean dashboard image.** The dashboard has no torch dependency; it talks to the API and the DB.
+```bash
+make install       # Python 3.11 venv with all extras
+make data          # clone BCCD and convert it to YOLO format (seeded 70/15/15 split)
+make train         # YOLO11n and YOLO11s, up to 100 epochs each
+make evaluate      # test-set metrics -> reports/metrics/
+make stats         # per-image artefacts + paired bootstrap confidence intervals
+make promote       # best run -> models/best.pt and best.onnx
+make ingest        # analyse the test split into PostgreSQL (stack must be running)
+```
+
+`make stats` can be re-run from the committed files in `reports/predictions/` without a GPU or the dataset.
+
+## Data and model provenance
+
+- **Dataset:** [BCCD](https://github.com/Shenggan/BCCD_Dataset), 364 annotated 640×480 images of stained blood smears, published under the MIT licence. Its README credits the original images to two earlier GitHub repositories; their terms are not documented there. The dataset is not redistributed here.
+- **Split:** 254 train / 54 validation / 56 test images, seeded and split by image.
+- **Model:** YOLO11n fine-tuned from Ultralytics' COCO-pretrained `yolo11n.pt` (early-stopped at 84 epochs; cosine learning rate; flips and ±10° rotation, since microscopy has no fixed orientation). YOLO11s was trained the same way for comparison.
+- **Served files:** `models/best.pt`, `models/best.onnx` and `models/model_info.json` (source run, SHA-256 hashes, thresholds).
+
+Details are in the [model card](docs/MODEL_CARD.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+
+## Results
+
+All numbers are on the **held-out test split** (56 images, 746 labelled cells), which was not used for training, model selection or threshold calibration. Brackets are 95% confidence intervals.
+
+### Detection
+
+| Model | Params | mAP@0.5 | mAP@0.5:0.95 | CPU latency | Apple M4 GPU latency |
+|---|---|---|---|---|---|
+| 5-epoch baseline (YOLO11n) | 2.6 M | 0.933 [0.904, 0.952] | 0.629 [0.600, 0.661] | n/a | n/a |
+| **YOLO11n (served)** | **2.6 M** | 0.946 [0.924, 0.961] | 0.644 [0.618, 0.677] | **18.9 ms (ONNX)** | **10.9 ms** |
+| YOLO11s | 9.4 M | 0.946 [0.922, 0.963] | 0.650 [0.626, 0.677] | 38.5 ms | 15.7 ms |
+
+Per-class mAP@0.5:0.95 for the served model: RBC 0.644 [0.612, 0.675], WBC 0.784 [0.751, 0.822], platelets 0.504 [0.453, 0.562]. Latency is the mean over 50 test images on an Apple M4, measured outside Docker.
+
+![Ground truth vs. prediction on held-out test images](docs/assets/predictions_grid.png)
+
+### Statistical uncertainty and model comparison
+
+Intervals come from a **paired, image-level bootstrap**: the 56 test images are resampled with replacement 2,000 times (seed 42), every model is scored on the same resampled images, and the 2.5th and 97.5th percentiles are reported. The recomputed mAP matches Ultralytics `model.val()` to four decimals, and a test fails if it drifts.
+
+| Paired comparison | Δ mAP@0.5:0.95 | 95% CI | What this test set supports |
+|---|---|---|---|
+| YOLO11s − YOLO11n | +0.005 | [−0.008, +0.019] | Not resolved |
+| 5-epoch baseline − YOLO11n | −0.015 | [−0.037, +0.004] | Not resolved overall; resolved for RBC only (−0.030, [−0.046, −0.013]) |
+
+"Not resolved" means this test set cannot tell the two models apart on that metric. It is **not** evidence that they are equivalent: the interval still allows YOLO11s to be anywhere from 0.008 worse to 0.019 better. YOLO11n is served because it has 3.6× fewer parameters and half the CPU latency; YOLO11s does count platelets better (count error −0.21 per image, [−0.38, −0.07]). Method, all comparisons and limitations: [docs/EVALUATION_UNCERTAINTY.md](docs/EVALUATION_UNCERTAINTY.md).
+
+### Counting error and calibration
+
+Counts are what a user consumes, so each model is also scored on **mean absolute count error per image** against the labels.
+
+| Threshold strategy (served model) | RBC error (bias) | WBC error | Platelet error |
+|---|---|---|---|
+| One global confidence threshold, 0.25 | 7.48 (+7.45) | 0.02 | 0.29 |
+| **Per-class thresholds chosen on the validation split** | **3.11** (+0.57) | 0.02 | 0.46 |
+| Paired effect of calibration, 95% CI | −4.38 [−5.52, −3.16] | 0.00 | +0.18 [+0.05, +0.30] |
+
+- **Why RBCs looked over-counted.** At 0.25 the model found 7.5 more RBCs per image than the labels (label mean 11.3). In the figure above, the middle row's labels mark 5 RBCs where about 14 are visible: BCCD's annotators often skipped RBCs. This was judged by inspecting images, not measured against a re-labelled set.
+- **What calibration does.** For each class, the threshold that minimises count error on the 54 validation images is chosen (RBC 0.55, WBC 0.15, platelets 0.10) and shipped with the model. RBC error fell by 4.4 cells per image (58%).
+- **What did not work.** The platelet threshold made platelet counting slightly *worse* on test. With about one platelet per image, the validation set is too small to calibrate that class. It is left as an open issue and was not tuned on the test set.
+- **Caveats.** The RBC threshold partly fits BCCD's sparse labelling, so it would likely be too strict on fully labelled data. Counts depend on the box-suppression (NMS) setting; serving uses the same value (IoU 0.5) the thresholds were chosen with, enforced by a test. These figures are for the PyTorch weights; the ONNX export served in Docker gives slightly different detections (test-split count error 2.62 / 0.02 / 0.41).
+
+## Grounded Gemini reports and their limits
+
+Gemini never sees the image and never produces the tables or measurements in a report. It receives aggregate numbers only and returns JSON (`summary`, `quality_assessment`, `reviewer_actions`) validated against a Pydantic schema. A rule-based checker, with no second LLM, then rejects the narrative if:
+
+- a number cannot be traced to the detector/QC output (for example an invented cell diameter);
+- a number attached to a cell class or the total contradicts that count ("17 RBCs" when 16 were detected);
+- the summary omits the total count or the QC status;
+- it uses a listed clinical or diagnostic term.
+
+A rejected narrative, invalid JSON, an empty or blocked response, or an API error falls back to a deterministic template, and the response records why in `report_validation`.
+
+**This does not prevent every wrong statement.** The checker tests traceability, not meaning. It accepts a real number reused with the wrong meaning or unit, a wrong QC figure that happens to equal another value, prose that contradicts the QC status while naming it, numbers written as words, and clinical wording outside its term list. The code-rendered tables in each report are the source of truth.
+
+**Verification status:** 33 automated tests cover valid, inconsistent, fabricated, malformed and failed-API cases using recorded outputs. **No live Gemini call has been made yet**; `python scripts/live_gemini_check.py` performs one and saves an example report to `docs/examples/`.
+
+## Testing
+
+```bash
+make test          # 68 tests: QC maths, API contract, report checker, statistics, NMS alignment, real model
+make lint          # ruff
+```
+
+The suite runs offline. In a checkout without the dataset, the two real-model tests are skipped. GitHub Actions runs lint, tests and both Docker builds on pushes to `main` and on pull requests.
+
+## Security and limitations
+
+- **Not for clinical use.** No clinical validation, no regulatory clearance, and the model has seen one dataset from one source. Expect worse results on other microscopes, stains or magnifications.
+- **Small test set.** 56 images; several differences between models cannot be resolved.
+- **Label noise.** Missing RBC annotations make RBC precision and count metrics pessimistic.
+- **Not distinguished:** white-cell subtypes, abnormal cells, parasites.
+- **Demo-grade deployment.** No authentication or rate limiting, CORS is open, and the default database password is `bloodcell`; ports bind to localhost only. Change these before exposing the stack to a network.
+- **Secrets:** `.env` and Streamlit secrets are git-ignored; the Gemini key is read from the environment and is never logged or stored.
+- **Stored data:** analysed images are saved in PostgreSQL. Do not upload patient-identifiable images.
 
 ## Project structure
 
 ```
-bloodcell/            Python package
-  config.py           env-driven settings, device auto-selection
-  schemas.py          Pydantic contracts (Detection, QualityControl, Analysis)
-  inference.py        Detector wrapper (PyTorch / ONNX)
-  qc.py               vectorised IoU, QC flags and status
-  report.py           structured Gemini narrative + template fallback
-  report_validation.py deterministic claim checker
-  pipeline.py         detect -> QC -> report
-  db.py               PostgreSQL persistence
-  api.py              FastAPI app
-dashboard/app.py      Streamlit UI
-scripts/              prepare_dataset, train, evaluate, export_predictions,
-                      bootstrap_eval, promote_model, benchmark, make_figures, ingest
-db/init.sql           schema
-docker/               API + dashboard Dockerfiles
-tests/                unit, API-contract and model integration tests
-models/               served weights (best.pt, best.onnx, model_info.json)
-reports/metrics/      evaluation, bootstrap and benchmark JSON
-reports/predictions/  per-image test artefacts (reproduce the CIs without a GPU)
+bloodcell/            config, schemas, inference, qc, report, report_validation, pipeline, db, api
+dashboard/app.py      Streamlit UI (no torch dependency)
+scripts/              prepare_dataset, train, evaluate, export_predictions, bootstrap_eval,
+                      promote_model, benchmark, make_figures, ingest, live_gemini_check
+tests/                68 tests
+models/               served weights and model_info.json
+reports/              metrics (JSON) and per-image test artefacts
 docs/                 MODEL_CARD.md, EVALUATION_UNCERTAINTY.md, RELEASE_CHECKLIST.md, figures
 ```
 
-## Release status
+## Licence
 
-See [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) for what is verified and what remains before public release.
+A project licence has not been selected yet; until one is added, no reuse rights are granted for the original code in this repository.
 
-## Limitations & next steps
-
-See [docs/MODEL_CARD.md](docs/MODEL_CARD.md). In short: BCCD is small (364 images, one lab, one stain), has known missing RBC labels, and platelets are tiny, so results won't transfer to other microscopes without re-training. Next steps: SAHI tiled inference for platelets, active-learning loop from REVIEW-flagged cases, WBC sub-type classification, MLflow experiment tracking.
-
-## Acknowledgements
-
-Dataset: [BCCD Dataset](https://github.com/Shenggan/BCCD_Dataset) (MIT). Model: [Ultralytics YOLO11](https://github.com/ultralytics/ultralytics) (AGPL-3.0).
+Third-party components and their licences are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): Ultralytics YOLO code and the fine-tuned weights are AGPL-3.0, and the BCCD dataset is MIT.
