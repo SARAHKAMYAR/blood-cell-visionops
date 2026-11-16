@@ -2,7 +2,7 @@
 
 **An end-to-end computer-vision system that detects and counts red blood cells, white blood cells and platelets in microscopy images, flags unreliable results automatically, and writes an LLM report whose numbers are checked against the detector output.**
 
-![Python](https://img.shields.io/badge/python-3.11-blue) ![YOLO11](https://img.shields.io/badge/model-YOLO11-purple) ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688) ![Gemini](https://img.shields.io/badge/LLM-Gemini-4285F4) ![Docker](https://img.shields.io/badge/deploy-Docker%20Compose-2496ED)
+[![CI](https://github.com/SARAHKAMYAR/blood-cell-visionops/actions/workflows/ci.yml/badge.svg)](https://github.com/SARAHKAMYAR/blood-cell-visionops/actions/workflows/ci.yml) [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE) ![Python](https://img.shields.io/badge/python-3.11-blue) ![YOLO11](https://img.shields.io/badge/model-YOLO11-purple) ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688) ![Gemini](https://img.shields.io/badge/LLM-Gemini-4285F4) ![Docker](https://img.shields.io/badge/deploy-Docker%20Compose-2496ED)
 
 > ⚠️ Research and education project. Not a medical device, not validated for clinical use, and not for diagnosis.
 

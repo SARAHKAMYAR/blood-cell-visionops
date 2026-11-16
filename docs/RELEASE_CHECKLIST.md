@@ -15,15 +15,16 @@ repository; ⬜ = still open.
   served NMS IoU is pinned to the calibration value by tests.
 - ✅ No credentials in tracked files or Git history (pattern scan); `.env`, Streamlit secrets,
   virtualenvs, datasets and training runs are git-ignored and were never committed.
-- ✅ Third-party licences recorded in `THIRD_PARTY_NOTICES.md`.
+- ✅ Released under AGPL-3.0 (`LICENSE`); third-party licences recorded in `THIRD_PARTY_NOTICES.md`.
+- ✅ GitHub Actions passed on `main` (lint, tests, both Docker image builds).
+- ✅ Commit history uses a GitHub no-reply address.
 
 ## Open
 1. ⬜ **Live Gemini check.** No API key was available, so no real call has been made. Put
    `GEMINI_API_KEY=...` in `.env` (never commit it), then run `python scripts/live_gemini_check.py`.
    It makes one request, prints the claim-check result and saves `docs/examples/gemini_report_example.md`.
 2. ⬜ **Dependency vulnerability scan** (`pip-audit` was not installed in the development environment).
-3. ⬜ **CI result.** The workflow is valid YAML and its steps pass locally, but it only counts once a
-   real GitHub Actions run has passed.
+3. ⬜ **Make the repository public** once the items above are accepted or done (it was published private first).
 
 ## Known open issues (documented, not hidden)
 - Platelet threshold calibration slightly worsens platelet counting on test (+0.18, CI excludes 0).
