@@ -45,7 +45,8 @@ Metrics on the held-out **test** split (never used for training or model selecti
 - Model: Google Gemini (configurable via `GEMINI_MODEL`).
 - Input: only aggregate measurements (counts, confidence stats, QC flags). No image and no patient data.
 - Output: structured JSON (`summary`, `quality_assessment`, `reviewer_actions`) validated with Pydantic. The LLM writes prose only; all tables and measurements are rendered by code.
-- Verification (deterministic, no second LLM): every number must trace to the payload at its written precision; class- and total-attached numbers must equal that specific count; the summary must state the total and QC status; clinical terms are rejected. 0 false rejections on 112 faithful narratives from test-set outputs.
+- Claim check (deterministic, no second LLM): every number must trace to the payload at its written precision; class- and total-attached numbers must equal that specific count; the summary must state the total and QC status; listed clinical terms are rejected. In a one-off manual check, 0 of 112 faithful narratives from test-set outputs were falsely rejected.
+- Known gaps in the claim check: it tests traceability, not meaning. It accepts a real number reused with the wrong meaning or unit, a wrong QC figure that equals another payload value, prose that contradicts the QC status while naming it, numbers written as words, and clinical wording outside the term list. The code-rendered tables are the source of truth.
 - Guardrails: temperature 0.2; template fallback on missing key, API error, empty or safety-blocked response, invalid JSON, schema violation or failed verification; the reason is returned in `report_validation`; the disclaimer is appended in code.
 - Not yet verified against the live Gemini API (no key in the development environment); all LLM paths are tested with recorded outputs.
 

@@ -20,7 +20,7 @@ this repository; ⬜ = still to do (owner: repository author).
    If the SDK rejects the response schema, or narratives are rejected often, review the `issues` list before release.
    Paste one verified report into the README.
 3. ⬜ **Dashboard screenshot.** Docker must be running.
-   1. `docker compose up -d` (use `API_PORT=8010` if port 8000 is taken), then `make ingest`.
+   1. `docker compose up -d` (use `API_PORT=8010` if port 8000 is taken), then `make data` (if the dataset is not present) and `make ingest`.
    2. Open http://localhost:8501 → **Review** tab → pick an image with QC status **REVIEW**.
    3. Browser window about 1440×900; capture the QC badge, flags and side-by-side detections.
    4. Save as `docs/assets/dashboard.png` (PNG, < 500 kB), then un-comment the image line in the README's *Dashboard* section and delete the TODO comment.
@@ -30,7 +30,7 @@ this repository; ⬜ = still to do (owner: repository author).
 ## Known open issues (document, don't hide)
 - Platelet threshold calibration hurts on test (+0.18 count MAE, CI excludes 0). Options for a future version: keep conf 0.25 for platelets, or calibrate with cross-validation over train+val. Do **not** choose using the test set.
 - Test set is 56 images; several model differences are not resolved (see `docs/EVALUATION_UNCERTAINTY.md`).
-- The report verifier does not check numbers written as words and covers common phrasings only.
+- The report checker tests traceability, not meaning: it accepts real numbers reused with the wrong meaning or unit, wrong QC figures that equal another value, and numbers written as words (full list in the README).
 
 ## Nice to have
 - Hosted demo (e.g. Hugging Face Spaces) linked from the README.

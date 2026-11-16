@@ -185,7 +185,10 @@ def test_gemini_valid_report(sample_prediction, qc, llm_settings, monkeypatch):
     assert validation.llm_model == "gemini-test"
     assert VALID["summary"] in text
     assert "| RBC | 2 | 50% |" in text  # table rendered by code, not by the LLM
-    assert "verified against them" in text
+    assert "checked for traceability to detector outputs" in text
+    assert "reported cell counts were cross-checked" in text
+    assert "does not guarantee the correctness of all interpretations" in text
+    assert "verified against" not in text  # footer must not overstate the check
     assert text.rstrip().endswith(report.DISCLAIMER)
 
 

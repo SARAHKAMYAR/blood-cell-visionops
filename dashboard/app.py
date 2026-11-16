@@ -221,7 +221,11 @@ with tab_analyze:
         st.subheader("Technical report")
         val = result.get("report_validation") or {}
         if val.get("status") == "verified":
-            st.success(f"Gemini narrative verified: {val.get('numbers_checked', 0)} numeric claims match the detector output.", icon="✅")
+            st.success(
+                f"Gemini narrative passed the claim check: {val.get('numbers_checked', 0)} numeric values are "
+                "traceable to the detector output and cell counts were cross-checked. Interpretations are not verified.",
+                icon="✅",
+            )
         elif val.get("status") == "rejected":
             st.warning("Gemini narrative rejected by verification; showing the deterministic report.", icon="🛡️")
             with st.expander("Why it was rejected"):

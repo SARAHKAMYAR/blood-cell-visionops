@@ -145,9 +145,10 @@ def render_llm_report(
         "### Recommended Reviewer Actions",
         *[f"- {a.strip()}" for a in narrative.reviewer_actions],
         "",
-        f"_Narrative written by {validation.llm_model} (structured output). All figures are computed "
-        f"by the detector and QC; {validation.numbers_checked} numeric claim(s) in the narrative were "
-        f"verified against them._",
+        f"_Narrative written by {validation.llm_model} (structured output). Tables and measurements are "
+        f"computed by the detector and QC. The {validation.numbers_checked} numeric value(s) in the "
+        f"narrative were checked for traceability to detector outputs, and reported cell counts were "
+        f"cross-checked. This does not guarantee the correctness of all interpretations or statements._",
         "",
         DISCLAIMER,
     ]
